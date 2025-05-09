@@ -1,15 +1,20 @@
 #include <GLFW/glfw3.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <string.h>
+#include <stdbool.h>
 
 #define STB_EASY_FONT_IMPLEMENTATION
 #include "stb_easy_font.h"
+
+#include "./filestuff.h"
 
 #define MAX_TEXT_LENGTH 1024
 
 
 char text[MAX_TEXT_LENGTH] = "";
 int text_length = 0;
+int cursor_pos = 0;
 
 void render_char(float x, float y, char c) {
 
@@ -55,35 +60,54 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 
 void character_callback(GLFWwindow* window, unsigned int codepoint) {
     if (text_length < MAX_TEXT_LENGTH - 1) {
-        text[text_length++] = (char)codepoint;
+        text[cursor_pos++] = (char)codepoint;
+        text_length += 1;
         text[text_length] = '\0';
     }
 }
 
+bool left = false;
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, 1);
     // else if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
     //     printf("Space key pressed!\n");
-    else if (key == GLFW_KEY_BACKSPACE && action == GLFW_PRESS){
+    else if (key == GLFW_KEY_BACKSPACE && action == GLFW_PRESS || action == GLFW_REPEAT){
         if (text_length > 0) {
-            text[--text_length] = '\0';
+            text[--cursor_pos] = "";
+            --text_length;
         }
     }
-    else if (key == GLFW_KEY_ENTER && action == GLFW_PRESS)
+    else if (key == GLFW_KEY_ENTER && action == GLFW_PRESS){
         if(text_length < MAX_TEXT_LENGTH - 1){  
-            text[text_length++] = '\n';
+            text[cursor_pos++] = '\n';
+            text_length += 1;
             text[text_length] = '\0';
         }
-    
+    }
+    else if(key == GLFW_KEY_DELETE && action == GLFW_PRESS){
+        text[cursor_pos] = "";
+        --text_length;
+    }
+    else if (key == GLFW_KEY_LEFT && action == GLFW_PRESS){
+        --cursor_pos;
+    }
+    else if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS){
+        if(cursor_pos < text_length){
+            ++cursor_pos;
+        }
+    }
 
 
     
 }
 
 
-int main(void) {
+
+
+int main(int argc, char** argv) {
+
     if (!glfwInit()) {
         fprintf(stderr, "Failed to initialize GLFW\n");
         return -1;
@@ -123,6 +147,10 @@ int main(void) {
         // Set the background color
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
+
+        if(left == true){
+            printf("IM GPNNA IKAFLKNA\n");
+        }
 
         drawText(50.0f, 50.0f, 5.0f, text);
 
