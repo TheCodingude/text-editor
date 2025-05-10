@@ -1,41 +1,34 @@
-#include <GLFW/glfw3.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_opengl.h>
 #include <stdio.h>
-#include <ctype.h>
 #include <string.h>
 #include <stdbool.h>
 
 #define STB_EASY_FONT_IMPLEMENTATION
 #include "stb_easy_font.h"
 
-#include "./filestuff.h"
-
 #define MAX_TEXT_LENGTH 1024
-
 
 char text[MAX_TEXT_LENGTH] = "";
 int text_length = 0;
 int cursor_pos = 0;
 
-void render_char(float x, float y, char c) {
+void drawCursor(float x, float y, float scale, int pos) {
+    char temp[MAX_TEXT_LENGTH];
+    strncpy(temp, text, pos);
+    temp[pos] = '\0';
 
-    if (c == '\0') return;
+    float cursor_x = stb_easy_font_width(temp) * scale;
 
-    char buffer[99999];
-    int num_quads;
     glColor3f(1.0f, 1.0f, 1.0f);
-    
-    char text[2] = { c, '\0' };
-    num_quads = stb_easy_font_print(x, y, text, NULL, buffer, sizeof(buffer));
-    
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glVertexPointer(2, GL_FLOAT, 16, buffer);
-    glDrawArrays(GL_QUADS, 0, num_quads * 4);
-    glDisableClientState(GL_VERTEX_ARRAY);
+    glBegin(GL_LINES);
+    glVertex2f(x + cursor_x, y);
+    glVertex2f(x + cursor_x, y + 20 * scale);
+    glEnd();
 }
 
-
 void drawText(float x, float y, float scale, char* texts) {
-    char buffer[99999]; // A buffer for vertices
+    char buffer[99999];
     int num_quads;
 
     glPushMatrix();
@@ -53,111 +46,79 @@ void drawText(float x, float y, float scale, char* texts) {
     glPopMatrix();
 }
 
+int main(int argc, char* argv[]) {
+    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Window* window = SDL_CreateWindow("Text Editor",
+        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        800, 600, SDL_WINDOW_OPENGL);
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-    glViewport(0, 0, width, height);
-}
+    SDL_GLContext gl_context = SDL_GL_CreateContext(window);
+    SDL_GL_SetSwapInterval(1);
 
-void character_callback(GLFWwindow* window, unsigned int codepoint) {
-    if (text_length < MAX_TEXT_LENGTH - 1) {
-        text[cursor_pos++] = (char)codepoint;
-        text_length += 1;
-        text[text_length] = '\0';
-    }
-}
-
-bool left = false;
-
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, 1);
-    // else if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
-    //     printf("Space key pressed!\n");
-    else if (key == GLFW_KEY_BACKSPACE && action == GLFW_PRESS || action == GLFW_REPEAT){
-        if (text_length > 0) {
-            text[--cursor_pos] = "";
-            --text_length;
-        }
-    }
-    else if (key == GLFW_KEY_ENTER && action == GLFW_PRESS){
-        if(text_length < MAX_TEXT_LENGTH - 1){  
-            text[cursor_pos++] = '\n';
-            text_length += 1;
-            text[text_length] = '\0';
-        }
-    }
-    else if(key == GLFW_KEY_DELETE && action == GLFW_PRESS){
-        text[cursor_pos] = "";
-        --text_length;
-    }
-    else if (key == GLFW_KEY_LEFT && action == GLFW_PRESS){
-        --cursor_pos;
-    }
-    else if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS){
-        if(cursor_pos < text_length){
-            ++cursor_pos;
-        }
-    }
-
-
-    
-}
-
-
-
-
-int main(int argc, char** argv) {
-
-    if (!glfwInit()) {
-        fprintf(stderr, "Failed to initialize GLFW\n");
-        return -1;
-    }
-
-    // GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-
-    // const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-
-    GLFWwindow* window = glfwCreateWindow(800, 600, "Text Editor", NULL, NULL);
-
-    if (!window) {
-        fprintf(stderr, "Failed to create GLFW window\n");
-        glfwTerminate();
-        return -1;
-    }
-
-    glfwMakeContextCurrent(window);
-    glfwSwapInterval(1); // Enable V-Sync
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(0.0, 800, 600, 0.0, -1.0, 1.0);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    glfwSetCharCallback(window, character_callback);
-    glfwSetKeyCallback(window, key_callback);
+    SDL_StartTextInput();
 
-    while (!glfwWindowShouldClose(window)) {
-
-        glfwPollEvents();
-        glLineWidth(5.0f);
-
-        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-            glfwSetWindowShouldClose(window, 1);
+    bool running = true;
+    while (running) {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                running = false;
+            } else if (event.type == SDL_TEXTINPUT) {
+                const char* input = event.text.text;
+                while (*input && text_length < MAX_TEXT_LENGTH - 1) {
+                    memmove(&text[cursor_pos + 1], &text[cursor_pos], text_length - cursor_pos + 1);
+                    text[cursor_pos++] = *input++;
+                    text_length++;
+                }
+                text[text_length] = '\0';
+            } else if (event.type == SDL_KEYDOWN) {
+                SDL_Keycode key = event.key.keysym.sym;
+                if (key == SDLK_ESCAPE) {
+                    running = false;
+                } else if (key == SDLK_BACKSPACE) {
+                    if (cursor_pos > 0 && text_length > 0) {
+                        memmove(&text[cursor_pos - 1], &text[cursor_pos], text_length - cursor_pos + 1);
+                        cursor_pos--;
+                        text_length--;
+                    }
+                } else if (key == SDLK_DELETE) {
+                    if (cursor_pos < text_length) {
+                        memmove(&text[cursor_pos], &text[cursor_pos + 1], text_length - cursor_pos);
+                        text_length--;
+                    }
+                } else if (key == SDLK_RETURN || key == SDLK_RETURN2) {
+                    if (text_length < MAX_TEXT_LENGTH - 1) {
+                        memmove(&text[cursor_pos + 1], &text[cursor_pos], text_length - cursor_pos + 1);
+                        text[cursor_pos++] = '\n';
+                        text_length++;
+                    }
+                } else if (key == SDLK_LEFT) {
+                    if (cursor_pos > 0) cursor_pos--;
+                } else if (key == SDLK_RIGHT) {
+                    if (cursor_pos < text_length) cursor_pos++;
+                }
+            }
         }
-        // Set the background color
+
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        if(left == true){
-            printf("IM GPNNA IKAFLKNA\n");
-        }
-
         drawText(50.0f, 50.0f, 5.0f, text);
+        drawCursor(50.0f, 50.0f, 5.0f, cursor_pos);
 
-        glfwSwapBuffers(window);
+        SDL_GL_SwapWindow(window);
     }
 
-    glfwDestroyWindow(window);
-    glfwTerminate();
+    SDL_StopTextInput();
+    SDL_GL_DeleteContext(gl_context);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+
     return 0;
 }
