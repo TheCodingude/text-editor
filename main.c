@@ -64,6 +64,7 @@ int main(int argc, char *argv[]) {
     int textLength = 0;
 
     Cursor cursor = {0};
+    float scale = 3.0f;
 
     int running = 1;
     while (running) {
@@ -117,7 +118,7 @@ int main(int argc, char *argv[]) {
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 
-        renderText(textBuffer, 10.0f, 10.0f, 3.0f);
+        renderText(textBuffer, 10.0f, 10.0f, scale);
 
         SDL_GL_SwapWindow(window);
     }
