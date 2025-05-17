@@ -5,6 +5,9 @@
 
 #include "stb_easy_font.h" 
 
+#define STRUNG_IMPLEMENTATION
+#include "strung.h"
+
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
@@ -60,9 +63,7 @@ int main(int argc, char *argv[]) {
 
     SDL_StartTextInput();
 
-    char textBuffer[1024] = {0};
-    int textLength = 0;
-
+    Strung text = strung_init("");
     Cursor cursor = {0};
     float scale = 3.0f;
 
@@ -73,34 +74,25 @@ int main(int argc, char *argv[]) {
             if (event.type == SDL_QUIT) {
                 running = 0;
             } else if (event.type == SDL_TEXTINPUT) {
-                if (textLength < sizeof(textBuffer) - 1) {
-                    memmove(&textBuffer[cursor.pos + strlen(event.text.text)], &textBuffer[cursor.pos], textLength - cursor.pos + 1);
-                    memcpy(&textBuffer[cursor.pos], event.text.text, strlen(event.text.text));
-                    textLength += strlen(event.text.text);
-                    cursor.pos += strlen(event.text.text);
-                }
+                strung_insert_string(&text, event.text.text, cursor.pos);
+                cursor.pos += strlen(event.text.text);
             } else if (event.type == SDL_KEYDOWN) {
                 switch (event.key.keysym.sym) {
                     case SDLK_BACKSPACE:
                         if (cursor.pos > 0) {
-                            memmove(&textBuffer[cursor.pos - 1], &textBuffer[cursor.pos], textLength - cursor.pos + 1);
-                            textLength--;
+                            strung_remove_char(&text, cursor.pos-1);
                             cursor.pos--;
                         }
                         break;
                     case SDLK_RETURN:
-                        if (textLength < sizeof(textBuffer) - 1) {
-                            memmove(&textBuffer[cursor.pos + 1], &textBuffer[cursor.pos], textLength - cursor.pos + 1);
-                            textBuffer[cursor.pos] = '\n';
-                            textLength++;
-                            cursor.pos++;
-                        }
+                        strung_insert_char(&text, '\n', cursor.pos);
+                        cursor.pos++;
                         break;
                     case SDLK_LEFT:
                         if (cursor.pos > 0) cursor.pos--;
                         break;
                     case SDLK_RIGHT:
-                        if (cursor.pos < textLength) cursor.pos++;
+                        if (cursor.pos < text.size) cursor.pos++;
                         break;
                     case SDLK_ESCAPE:
                         running = 0;
@@ -118,11 +110,12 @@ int main(int argc, char *argv[]) {
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 
-        renderText(textBuffer, 10.0f, 10.0f, scale);
+        renderText(text.data, 10.0f, 10.0f, scale);
 
         SDL_GL_SwapWindow(window);
     }
 
+    strung_free(&text);
     SDL_StopTextInput();
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(window);
