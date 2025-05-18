@@ -74,8 +74,11 @@ int main(int argc, char *argv[]) {
             if (event.type == SDL_QUIT) {
                 running = 0;
             } else if (event.type == SDL_TEXTINPUT) {
-                strung_insert_string(&text, event.text.text, cursor.pos);
-                cursor.pos += strlen(event.text.text);
+                if (!(SDL_GetModState() & KMOD_CTRL)) {
+                    strung_insert_string(&text, event.text.text, cursor.pos);
+                    cursor.pos += strlen(event.text.text);
+                    
+                } else {}
             } else if (event.type == SDL_KEYDOWN) {
                 switch (event.key.keysym.sym) {
                     case SDLK_BACKSPACE:
@@ -97,6 +100,17 @@ int main(int argc, char *argv[]) {
                     case SDLK_ESCAPE:
                         running = 0;
                         break;
+                    case SDLK_EQUALS:
+                        if(event.key.keysym.mod & KMOD_CTRL){
+                            scale += 0.5;
+                        }
+                        break;
+                    case SDLK_MINUS:
+                        if(event.key.keysym.mod & KMOD_CTRL){  
+                            if(scale > 0.5)
+                                scale -= 0.5;
+                        }
+                        break;
                     default:
                         break;
                 }
@@ -111,6 +125,8 @@ int main(int argc, char *argv[]) {
         glLoadIdentity();
 
         renderText(text.data, 10.0f, 10.0f, scale);
+        // printf("%f \n", scale);
+
 
         SDL_GL_SwapWindow(window);
     }
