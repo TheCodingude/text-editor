@@ -8,6 +8,8 @@
 #define STRUNG_IMPLEMENTATION
 #include "strung.h"
 
+
+
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
@@ -15,6 +17,15 @@ typedef struct {
     int pos;
     int line;
 }Cursor;
+
+typedef struct{
+    Cursor cursor;
+    char* file_path;
+    Strung text;
+}Editor;
+
+#include "filestuff.h"
+
 
 
 void renderText(char* text, float x, float y, float scale) {
@@ -37,6 +48,14 @@ void renderText(char* text, float x, float y, float scale) {
 }
 
 int main(int argc, char *argv[]) {
+    
+    Editor editor = {.cursor = {0}, .file_path = "", .text = strung_init("")};
+
+    if (argc > 1){
+        editor.file_path = argv[1];
+    }
+
+
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         fprintf(stderr, "Failed to initialize SDL: %s\n", SDL_GetError());
         return 1;
@@ -63,8 +82,6 @@ int main(int argc, char *argv[]) {
 
     SDL_StartTextInput();
 
-    Strung text = strung_init("");
-    Cursor cursor = {0};
     float scale = 3.0f;
 
     int running = 1;
@@ -75,27 +92,27 @@ int main(int argc, char *argv[]) {
                 running = 0;
             } else if (event.type == SDL_TEXTINPUT) {
                 if (!(SDL_GetModState() & KMOD_CTRL)) {
-                    strung_insert_string(&text, event.text.text, cursor.pos);
-                    cursor.pos += strlen(event.text.text);
+                    strung_insert_string(&editor.text, event.text.text, editor.cursor.pos);
+                    editor.cursor.pos += strlen(event.text.text);
                     
                 } else {}
             } else if (event.type == SDL_KEYDOWN) {
                 switch (event.key.keysym.sym) {
                     case SDLK_BACKSPACE:
-                        if (cursor.pos > 0) {
-                            strung_remove_char(&text, cursor.pos-1);
-                            cursor.pos--;
+                        if (editor.cursor.pos > 0) {
+                            strung_remove_char(&editor.text, editor.cursor.pos-1);
+                            editor.cursor.pos--;
                         }
                         break;
                     case SDLK_RETURN:
-                        strung_insert_char(&text, '\n', cursor.pos);
-                        cursor.pos++;
+                        strung_insert_char(&editor.text, '\n', editor.cursor.pos);
+                        editor.cursor.pos++;
                         break;
                     case SDLK_LEFT:
-                        if (cursor.pos > 0) cursor.pos--;
+                        if (editor.cursor.pos > 0) editor.cursor.pos--;
                         break;
                     case SDLK_RIGHT:
-                        if (cursor.pos < text.size) cursor.pos++;
+                        if (editor.cursor.pos < editor.text.size) editor.cursor.pos++;
                         break;
                     case SDLK_ESCAPE:
                         running = 0;
@@ -111,6 +128,16 @@ int main(int argc, char *argv[]) {
                                 scale -= 0.5;
                         }
                         break;
+                    case SDLK_s:
+                        if(event.key.keysym.mod & KMOD_CTRL){
+                            save_file(&editor);
+                        }
+                        break;
+                    case SDLK_o:
+                        if(event.key.keysym.mod & KMOD_CTRL){
+                            open_file();
+                        }
+                        break;
                     default:
                         break;
                 }
@@ -124,14 +151,14 @@ int main(int argc, char *argv[]) {
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 
-        renderText(text.data, 10.0f, 10.0f, scale);
+        renderText(editor.text.data, 10.0f, 10.0f, scale);
         // printf("%f \n", scale);
 
 
         SDL_GL_SwapWindow(window);
     }
 
-    strung_free(&text);
+    strung_free(&editor.text);
     SDL_StopTextInput();
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(window);
