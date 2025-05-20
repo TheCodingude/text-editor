@@ -12,6 +12,10 @@ typedef struct {
 
 Strung strung_init(char* str);
 void strung_append(Strung* str, const char* text);
+void strung_append_char(Strung* str, char ch);
+void strung_insert_char(Strung* str, char ch, int position);
+void strung_insert_string(Strung* str, const char* text, int position);
+void strung_remove_char(Strung* str, int position);
 void strung_free(Strung* str);
 
 #endif // STRUNG_H_
@@ -47,6 +51,24 @@ void strung_append(Strung* str, const char* text) {
     strcpy(str->data + str->size, text);
     str->size += text_len;
 }
+
+void strung_append_char(Strung* str, char ch) {
+    if (str->size + 1 >= str->capacity) {
+        int new_capacity = str->capacity * 2;
+        char* new_data = (char*)realloc(str->data, new_capacity * sizeof(char));
+        if (new_data) {
+            str->data = new_data;
+            str->capacity = new_capacity;
+        } else {
+            // Allocation failed
+            return;
+        }
+    }
+    str->data[str->size] = ch;
+    str->size++;
+    str->data[str->size] = '\0';
+}
+
 
 void strung_free(Strung* str) {
     free(str->data);
