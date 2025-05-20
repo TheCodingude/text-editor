@@ -2,6 +2,7 @@
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include <string.h>
+#include <assert.h>
 
 #include "stb_easy_font.h" 
 

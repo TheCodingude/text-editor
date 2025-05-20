@@ -13,7 +13,9 @@ void save_file(Editor *editor){
     if (f == NULL){
         return; // TODO: HAVE A POPUP THAT DISPLAYS ERROR
     }
-
-    fprintf(f, editor->text.data); // this is fine for now but in the future i would want it to write without having to close the application
     
+    fprintf(f, editor->text.data); 
+    
+    fclose(f); 
+
 }
