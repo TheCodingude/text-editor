@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
     Editor editor = {.cursor = {0}, .file_path = "", .text = strung_init("")};
 
     if (argc > 1){
-        editor.file_path = argv[1];
+        open_file(&editor, argv[1]);
     }
 
 
@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
                         break;
                     case SDLK_o:
                         if(event.key.keysym.mod & KMOD_CTRL){
-                            open_file();
+                            // open_file();
                         }
                         break;
                     default:
