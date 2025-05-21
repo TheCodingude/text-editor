@@ -3,7 +3,7 @@
 #include <string.h>
 
 
-void open_file(Editor *editor, const char* filepath){
+void open_file(Editor *editor, char* filepath){
 
     FILE *f = fopen(filepath, "r");
     if(f == NULL){
@@ -30,7 +30,7 @@ void save_file(Editor *editor){
         return; // TODO: HAVE A POPUP THAT DISPLAYS ERROR
     }
 
-    fprintf(f, editor->text.data); 
+    fprintf(f, "%s", editor->text.data); 
     
     fclose(f); 
 
