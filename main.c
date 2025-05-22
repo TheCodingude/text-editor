@@ -22,11 +22,9 @@ typedef struct{
     Strung text;
 }Editor;
 
+#define FONT_8X16
 #include "font.h"
 #include "filestuff.h"
-
-#define FONT_WIDTH 8
-#define FONT_HEIGHT 16
 
 void draw_char(char c, float x, float y, float scale) {
     if (c < 32 || c > 126) return; // Only printable ASCII
