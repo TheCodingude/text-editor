@@ -4,12 +4,9 @@
 #include <string.h>
 #include <assert.h>
 
-#include "stb_easy_font.h" 
 
 #define STRUNG_IMPLEMENTATION
 #include "strung.h"
-
-
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
@@ -25,31 +22,69 @@ typedef struct{
     Strung text;
 }Editor;
 
+#include "font.h"
 #include "filestuff.h"
 
+#define FONT_WIDTH 8
+#define FONT_HEIGHT 16
 
+void draw_char(char c, float x, float y, float scale) {
+    if (c < 32 || c > 126) return; // Only printable ASCII
+    int idx = c - 32;
+    for (int row = 0; row < FONT_HEIGHT; ++row) {
+        unsigned char bits = font8x16[idx][row];
+        for (int col = 0; col < FONT_WIDTH; ++col) {
+            if (bits & (1 << (7 - col))) {
+                float px = x + col * scale;
+                float py = y + row * scale;
+                glBegin(GL_QUADS);
+                glVertex2f(px, py);
+                glVertex2f(px + scale, py);
+                glVertex2f(px + scale, py + scale);
+                glVertex2f(px, py + scale);
+                glEnd();
+            }
+        }
+    }
+}
 
+// Render a string using the bitmap font
 void renderText(char* text, float x, float y, float scale) {
-    char buffer[99999]; // Temporary buffer for stb_easy_font
-    int num_quads;
-
-    glPushMatrix();
-    glTranslatef(x, y, 0);
-    glScalef(scale, scale, 1);
     glColor3f(1.0f, 1.0f, 1.0f);
+    float orig_x = x;
+    for (int i = 0; text[i]; ++i) {
+        if (text[i] == '\n') {
+            y += FONT_HEIGHT * scale;
+            x = orig_x;
+        } else {
+            draw_char(text[i], x, y, scale);
+            x += FONT_WIDTH * scale;
+        }
+    }
+}
 
-    // Generate quads for the text
-    num_quads = stb_easy_font_print(x, y, text, NULL, buffer, sizeof(buffer));
-
-    // Render the quads
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glVertexPointer(2, GL_FLOAT, 16, buffer);
-    glDrawArrays(GL_QUADS, 0, num_quads * 4);
-    glDisableClientState(GL_VERTEX_ARRAY);
+void renderCursor(Editor *editor, float scale) {
+    int x = 0, y = 0;
+    // Calculate cursor position in (column, row)
+    int col = 0, row = 0;
+    for (int i = 0; i < editor->cursor.pos; ++i) {
+        if (editor->text.data[i] == '\n') {
+            row++;
+            col = 0;
+        } else {
+            col++;
+        }
+    }
+    x = 10 + col * FONT_WIDTH * scale;
+    y = 10 + row * FONT_HEIGHT * scale;
+    glColor3f(1, 1, 1);
+    glBegin(GL_LINES);
+    glVertex2f(x, y);
+    glVertex2f(x, y + (FONT_HEIGHT * scale));
+    glEnd();
 }
 
 int main(int argc, char *argv[]) {
-    
     Editor editor = {.cursor = {0}, .file_path = "", .text = strung_init("")};
 
     if (argc > 1){
@@ -83,7 +118,7 @@ int main(int argc, char *argv[]) {
 
     SDL_StartTextInput();
 
-    float scale = 3.0f;
+    float scale = 2.0f;
 
     int running = 1;
     while (running) {
@@ -153,7 +188,7 @@ int main(int argc, char *argv[]) {
         glLoadIdentity();
 
         renderText(editor.text.data, 10.0f, 10.0f, scale);
-        // printf("%f \n", scale);
+        renderCursor(&editor, scale);
 
 
         SDL_GL_SwapWindow(window);
