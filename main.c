@@ -12,8 +12,9 @@
 #define WINDOW_HEIGHT 600
 
 typedef struct {
-    int pos;
+    int pos_in_text;
     int line;
+    int pos_in_line;
 }Cursor;
 
 typedef struct{
@@ -64,17 +65,17 @@ void renderText(char* text, float x, float y, float scale) {
 void renderCursor(Editor *editor, float scale) {
     int x = 0, y = 0;
     // Calculate cursor position in (column, row)
-    int col = 0, row = 0;
-    for (int i = 0; i < editor->cursor.pos; ++i) {
-        if (editor->text.data[i] == '\n') {
-            row++;
-            col = 0;
-        } else {
-            col++;
-        }
-    }
-    x = 10 + col * FONT_WIDTH * scale;
-    y = 10 + row * FONT_HEIGHT * scale;
+    // int col = 0, row = 0;
+    // for (int i = 0; i < editor->cursor.pos_in_text; ++i) {
+    //     if (editor->text.data[i] == '\n') {
+    //         row++;
+    //         col = 0;
+    //     } else {
+    //         col++;
+    //     }
+    // }
+    x = 10 + editor->cursor.pos_in_line * FONT_WIDTH * scale;
+    y = 10 + editor->cursor.line * FONT_HEIGHT * scale;
     glColor3f(1, 1, 1);
     glBegin(GL_LINES);
     glVertex2f(x, y);
@@ -126,27 +127,45 @@ int main(int argc, char *argv[]) {
                 running = 0;
             } else if (event.type == SDL_TEXTINPUT) {
                 if (!(SDL_GetModState() & KMOD_CTRL)) {
-                    strung_insert_string(&editor.text, event.text.text, editor.cursor.pos);
-                    editor.cursor.pos += strlen(event.text.text);
+                    strung_insert_string(&editor.text, event.text.text, editor.cursor.pos_in_text);
+                    editor.cursor.pos_in_text += strlen(event.text.text);
+                    editor.cursor.pos_in_line += strlen(event.text.text);
                     
                 } else {}
             } else if (event.type == SDL_KEYDOWN) {
                 switch (event.key.keysym.sym) {
                     case SDLK_BACKSPACE:
-                        if (editor.cursor.pos > 0) {
-                            strung_remove_char(&editor.text, editor.cursor.pos-1);
-                            editor.cursor.pos--;
+                        if (editor.cursor.pos_in_text > 0) {
+                            strung_remove_char(&editor.text, editor.cursor.pos_in_text-1);
+                            editor.cursor.pos_in_text--;
+                            if(editor.cursor.pos_in_line > 0) editor.cursor.pos_in_line--;
                         }
                         break;
                     case SDLK_RETURN:
-                        strung_insert_char(&editor.text, '\n', editor.cursor.pos);
-                        editor.cursor.pos++;
+                        strung_insert_char(&editor.text, '\n', editor.cursor.pos_in_text);
+                        editor.cursor.pos_in_text++;
+                        editor.cursor.line++;
+                        editor.cursor.pos_in_line = 0;
                         break;
                     case SDLK_LEFT:
-                        if (editor.cursor.pos > 0) editor.cursor.pos--;
+                        if (editor.cursor.pos_in_text > 0){
+                            editor.cursor.pos_in_text--;
+                            editor.cursor.pos_in_line--;
+                        } 
                         break;
                     case SDLK_RIGHT:
-                        if (editor.cursor.pos < editor.text.size) editor.cursor.pos++;
+                        if (editor.cursor.pos_in_text < editor.text.size){ 
+                            editor.cursor.pos_in_text++;
+                            editor.cursor.pos_in_line++;
+                        }
+                        break;
+                    case SDLK_UP:
+                        if(editor.cursor.line > 0){
+                            editor.cursor.line--;
+                        }
+                        break;
+                    case SDLK_DOWN:
+                        editor.cursor.line++;
                         break;
                     case SDLK_ESCAPE:
                         running = 0;

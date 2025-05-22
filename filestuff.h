@@ -4,20 +4,20 @@
 
 
 void open_file(Editor *editor, char* filepath){
+    editor->file_path = filepath;
 
     FILE *f = fopen(filepath, "r");
     if(f == NULL){
         return; // TODO: HAVE A POPUP THAT DISPLAYS ERROR  
     } 
 
-    editor->file_path = filepath;
     char buffer[1024];
 
     while(fgets(buffer, sizeof(buffer), f)){
         strung_append(&editor->text, buffer);
     }
 
-    editor->cursor.pos = editor->text.size;
+    editor->cursor.pos_in_text = editor->text.size;
     
     fclose(f);
 
