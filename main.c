@@ -13,8 +13,8 @@
 
 typedef struct {
     int pos_in_text;
-    int line;
     int pos_in_line;
+    int line;
 }Cursor;
 
 typedef struct{
@@ -26,6 +26,63 @@ typedef struct{
 #define FONT_8X16
 #include "font.h"
 #include "filestuff.h"
+
+
+void editor_recalculate_pos_up(Editor* editor){
+    int target_line = editor->cursor.line - 1;
+    int col = editor->cursor.pos_in_line;
+    int pos = 0;
+    int current_line = 0;
+    int current_col = 0;
+
+    while (editor->text.data[pos] && current_line < target_line) {
+        if (editor->text.data[pos] == '\n') {
+            current_line++;
+        }
+        pos++;
+    }
+
+    int line_start = pos;
+
+    while (editor->text.data[pos] && editor->text.data[pos] != '\n' && current_col < col) {
+        pos++;
+        current_col++;
+    }
+    editor->cursor.pos_in_text = pos;
+    editor->cursor.pos_in_line = current_col;
+    if(editor->cursor.line > 0){
+        editor->cursor.line--;
+    }
+}
+
+void editor_recalculate_pos_down(Editor* editor){
+    int target_line = editor->cursor.line + 1;
+    int col = editor->cursor.pos_in_line;
+    int pos = 0;
+    int current_line = 0;
+    int current_col = 0;
+
+    // Find start of target line
+    while (editor->text.data[pos] && current_line < target_line) {
+        if (editor->text.data[pos] == '\n') {
+            current_line++;
+        }
+        pos++;
+    }
+
+
+    if (!editor->text.data[pos]) return;
+
+    int line_start = pos;
+
+    while (editor->text.data[pos] && editor->text.data[pos] != '\n' && current_col < col) {
+        pos++;
+        current_col++;
+    }
+    editor->cursor.pos_in_text = pos;
+    editor->cursor.pos_in_line = current_col;
+    editor->cursor.line++;
+}
 
 void draw_char(char c, float x, float y, float scale) {
     if (c < 32 || c > 126) return; // Only printable ASCII
@@ -160,12 +217,10 @@ int main(int argc, char *argv[]) {
                         }
                         break;
                     case SDLK_UP:
-                        if(editor.cursor.line > 0){
-                            editor.cursor.line--;
-                        }
+                        editor_recalculate_pos_up(&editor);
                         break;
                     case SDLK_DOWN:
-                        editor.cursor.line++;
+                        editor_recalculate_pos_down(&editor);
                         break;
                     case SDLK_ESCAPE:
                         running = 0;
