@@ -193,9 +193,24 @@ int main(int argc, char *argv[]) {
                 switch (event.key.keysym.sym) {
                     case SDLK_BACKSPACE:
                         if (editor.cursor.pos_in_text > 0) {
-                            strung_remove_char(&editor.text, editor.cursor.pos_in_text-1);
-                            editor.cursor.pos_in_text--;
-                            if(editor.cursor.pos_in_line > 0) editor.cursor.pos_in_line--;
+                            // Check if deleting a newline
+                            if (editor.text.data[editor.cursor.pos_in_text - 1] == '\n') {
+                                // Move cursor to end of previous line
+                                int pos = editor.cursor.pos_in_text - 2;
+                                int col = 0;
+                                while (pos >= 0 && editor.text.data[pos] != '\n') {
+                                    pos--;
+                                    col++;
+                                }
+                                editor.cursor.pos_in_text--;
+                                editor.cursor.line--;
+                                editor.cursor.pos_in_line = col;
+                                strung_remove_char(&editor.text, editor.cursor.pos_in_text);
+                            } else {
+                                strung_remove_char(&editor.text, editor.cursor.pos_in_text - 1);
+                                editor.cursor.pos_in_text--;
+                                if (editor.cursor.pos_in_line > 0) editor.cursor.pos_in_line--;
+                            }
                         }
                         break;
                     case SDLK_RETURN:
@@ -203,6 +218,28 @@ int main(int argc, char *argv[]) {
                         editor.cursor.pos_in_text++;
                         editor.cursor.line++;
                         editor.cursor.pos_in_line = 0;
+                        break;
+                    case SDLK_HOME: 
+                        // Move cursor to the start of the current line
+                        int pos = editor.cursor.pos_in_text;
+                        while (pos > 0 && editor.text.data[pos - 1] != '\n') {
+                            pos--;
+                        }
+                        editor.cursor.pos_in_text = pos;
+                        editor.cursor.pos_in_line = 0;
+                        break;
+                    case SDLK_END:
+                        {
+                            int pos = editor.cursor.pos_in_text;
+                            int col = editor.cursor.pos_in_line;
+                            // Move to end of line or end of text
+                            while (editor.text.data[pos] && editor.text.data[pos] != '\n') {
+                                pos++;
+                                col++;
+                            }
+                            editor.cursor.pos_in_text = pos;
+                            editor.cursor.pos_in_line = col;
+                        }
                         break;
                     case SDLK_LEFT:
                         if (editor.cursor.pos_in_text > 0){
