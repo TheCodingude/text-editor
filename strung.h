@@ -79,7 +79,7 @@ void strung_free(Strung* str) {
 
 void strung_insert_char(Strung* str, char ch, int position) {
     if (position < 0 || position > str->size) {
-        fprintf(stderr, "Invalid Posistion\n");
+        fprintf(stderr, "Invalid Position\n");
         return;
     }
 
