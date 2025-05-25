@@ -3,6 +3,7 @@
 #include <GL/glu.h>
 #include <string.h>
 #include <assert.h>
+#include <stdbool.h>
 
 
 #define STRUNG_IMPLEMENTATION
@@ -18,9 +19,15 @@ typedef struct {
 }Cursor;
 
 typedef struct{
+    SDL_Window *window;
+
     Cursor cursor;
     char* file_path;
     Strung text;
+
+    Cursor command_cursor;
+    bool in_command;
+    Strung command_text;
 }Editor;
 
 #define FONT_8X16
@@ -34,16 +41,16 @@ void editor_recalculate_pos_up(Editor* editor){
     int pos = 0;
     int current_line = 0;
     int current_col = 0;
-
+    
     while (editor->text.data[pos] && current_line < target_line) {
         if (editor->text.data[pos] == '\n') {
             current_line++;
         }
         pos++;
     }
-
+    
     int line_start = pos;
-
+    
     while (editor->text.data[pos] && editor->text.data[pos] != '\n' && current_col < col) {
         pos++;
         current_col++;
@@ -61,7 +68,7 @@ void editor_recalculate_pos_down(Editor* editor){
     int pos = 0;
     int current_line = 0;
     int current_col = 0;
-
+    
     // Find start of target line
     while (editor->text.data[pos] && current_line < target_line) {
         if (editor->text.data[pos] == '\n') {
@@ -69,12 +76,12 @@ void editor_recalculate_pos_down(Editor* editor){
         }
         pos++;
     }
-
-
+    
+    
     if (!editor->text.data[pos]) return;
-
+    
     int line_start = pos;
-
+    
     while (editor->text.data[pos] && editor->text.data[pos] != '\n' && current_col < col) {
         pos++;
         current_col++;
@@ -124,24 +131,48 @@ void renderCursor(Editor *editor, float scale) {
     // Calculate cursor position in (column, row)
     // int col = 0, row = 0;
     // for (int i = 0; i < editor->cursor.pos_in_text; ++i) {
-    //     if (editor->text.data[i] == '\n') {
-    //         row++;
-    //         col = 0;
+        //     if (editor->text.data[i] == '\n') {
+            //         row++;
+            //         col = 0;
     //     } else {
-    //         col++;
-    //     }
-    // }
-    x = 10 + editor->cursor.pos_in_line * FONT_WIDTH * scale;
-    y = 10 + editor->cursor.line * FONT_HEIGHT * scale;
-    glColor3f(1, 1, 1);
-    glBegin(GL_LINES);
-    glVertex2f(x, y);
-    glVertex2f(x, y + (FONT_HEIGHT * scale));
+        //         col++;
+        //     }
+        // }
+        x = 10 + editor->cursor.pos_in_line * FONT_WIDTH * scale;
+        y = 10 + editor->cursor.line * FONT_HEIGHT * scale;
+        glColor3f(1, 1, 1);
+        glBegin(GL_LINES);
+        glVertex2f(x, y);
+        glVertex2f(x, y + (FONT_HEIGHT * scale));
+        glEnd();
+    }
+    
+    
+void render_text_box(Editor *editor, char *buffer, char* prompt, float scale){
+    int w, h;
+    SDL_GetWindowSize(editor->window, &w, &h);
+
+    int prompt_width = strlen(prompt) * FONT_WIDTH * scale;
+    
+    float x = 0;
+    float y = h;
+    float x1 = x + w;
+    float y1 = (90 * h) / 100;
+
+    glColor3f(0.251, 0.251, 0.251);
+    glBegin(GL_QUADS);
+    glVertex2f(x, y1); // top left
+    glVertex2f(x1, y1); // top right
+    glVertex2f(x1, y); // bottom right
+    glVertex2f(x, y); // bottom left
     glEnd();
+
+    renderText(prompt, x + 10, y - 40, 2.0);
+    renderText(editor->command_text.data, x + 10 + prompt_width, y - 40, 2.0);
 }
 
 int main(int argc, char *argv[]) {
-    Editor editor = {.cursor = {0}, .file_path = "", .text = strung_init("")};
+    Editor editor = {.cursor = {0}, .file_path = "", .text = strung_init(""), .command_text = strung_init(""), .command_cursor = {0}};
 
     if (argc > 1){
         open_file(&editor, argv[1]);
@@ -153,21 +184,21 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    SDL_Window *window = SDL_CreateWindow("Basic Text Editor",
+    editor.window = SDL_CreateWindow("Basic Text Editor",
                                           SDL_WINDOWPOS_CENTERED,
                                           SDL_WINDOWPOS_CENTERED,
                                           WINDOW_WIDTH, WINDOW_HEIGHT,
-                                          SDL_WINDOW_OPENGL);
-    if (!window) {
+                                          SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    if (!editor.window) {
         fprintf(stderr, "Failed to create window: %s\n", SDL_GetError());
         SDL_Quit();
         return 1;
     }
 
-    SDL_GLContext glContext = SDL_GL_CreateContext(window);
+    SDL_GLContext glContext = SDL_GL_CreateContext(editor.window);
     if (!glContext) {
         fprintf(stderr, "Failed to create OpenGL context: %s\n", SDL_GetError());
-        SDL_DestroyWindow(window);
+        SDL_DestroyWindow(editor.window);
         SDL_Quit();
         return 1;
     }
@@ -183,16 +214,25 @@ int main(int argc, char *argv[]) {
             if (event.type == SDL_QUIT) {
                 running = 0;
             } else if (event.type == SDL_TEXTINPUT) {
-                if (!(SDL_GetModState() & KMOD_CTRL)) {
+                if (!(SDL_GetModState() & KMOD_CTRL) && !editor.in_command) {
                     strung_insert_string(&editor.text, event.text.text, editor.cursor.pos_in_text);
                     editor.cursor.pos_in_text += strlen(event.text.text);
                     editor.cursor.pos_in_line += strlen(event.text.text);
                     
-                } else {}
+                } else if(editor.in_command){
+                    strung_insert_string(&editor.command_text, event.text.text, editor.command_cursor.pos_in_text);
+                    editor.command_cursor.pos_in_text += strlen(event.text.text);
+                }
             } else if (event.type == SDL_KEYDOWN) {
                 switch (event.key.keysym.sym) {
                     case SDLK_BACKSPACE:
-                        if (editor.cursor.pos_in_text > 0) {
+                        if (editor.in_command){
+                            if(editor.command_cursor.pos_in_text > 0){
+                            strung_remove_char(&editor.command_text, editor.command_cursor.pos_in_text - 1);
+                            editor.command_cursor.pos_in_text--;
+                            }
+                        }
+                        else if (editor.cursor.pos_in_text > 0) {
                             // Check if deleting a newline
                             if (editor.text.data[editor.cursor.pos_in_text - 1] == '\n') {
                                 // Move cursor to end of previous line
@@ -246,6 +286,9 @@ int main(int argc, char *argv[]) {
                             editor.cursor.pos_in_line = col;
                         }
                         break;
+                    case SDLK_F3:
+                        editor.in_command = !editor.in_command; // TODO: get a better hot key for this, i don't hate f3 but i think it could be better
+                        break;
                     case SDLK_LEFT:
                         if (editor.cursor.pos_in_text > 0){
                             editor.cursor.pos_in_text--;
@@ -281,7 +324,7 @@ int main(int argc, char *argv[]) {
                     case SDLK_MINUS:
                         if(event.key.keysym.mod & KMOD_CTRL){  
                             if(event.key.keysym.mod & KMOD_ALT) scale = 2.0f;
-                            if(scale > 0.5) scale -= 0.5;
+                            else scale -= 0.5;
                         }
                         break;
                     case SDLK_s:
@@ -307,17 +350,25 @@ int main(int argc, char *argv[]) {
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 
+        if(editor.in_command){
+            char buffer[100];
+            render_text_box(&editor, buffer, "Enter Command: ", scale);
+
+        }else{
+            
+            renderCursor(&editor, scale);
+        }
+        
         renderText(editor.text.data, 10.0f, 10.0f, scale);
-        renderCursor(&editor, scale);
+        
 
-
-        SDL_GL_SwapWindow(window);
+        SDL_GL_SwapWindow(editor.window);
     }
 
     strung_free(&editor.text);
     SDL_StopTextInput();
     SDL_GL_DeleteContext(glContext);
-    SDL_DestroyWindow(window);
+    SDL_DestroyWindow(editor.window);
     SDL_Quit();
 
     return 0;
