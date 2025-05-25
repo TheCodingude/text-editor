@@ -219,6 +219,11 @@ int main(int argc, char *argv[]) {
                         editor.cursor.line++;
                         editor.cursor.pos_in_line = 0;
                         break;
+                    case SDLK_TAB:
+                        strung_insert_string(&editor.text, "    ", editor.cursor.pos_in_text);
+                        editor.cursor.pos_in_line += 4;
+                        editor.cursor.pos_in_text += 4;
+                        break;
                     case SDLK_HOME: 
                         // Move cursor to the start of the current line
                         int pos = editor.cursor.pos_in_text;
