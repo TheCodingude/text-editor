@@ -249,8 +249,13 @@ int main(int argc, char *argv[]) {
                     case SDLK_LEFT:
                         if (editor.cursor.pos_in_text > 0){
                             editor.cursor.pos_in_text--;
+                        }
+                        if(editor.cursor.pos_in_line > 0){
                             editor.cursor.pos_in_line--;
-                        } 
+                        } else if(editor.cursor.line > 0){
+                            editor.cursor.line--;
+                            
+                        }
                         break;
                     case SDLK_RIGHT:
                         if (editor.cursor.pos_in_text < editor.text.size){ 
@@ -269,13 +274,14 @@ int main(int argc, char *argv[]) {
                         break;
                     case SDLK_EQUALS:
                         if(event.key.keysym.mod & KMOD_CTRL){
-                            scale += 0.5;
+                            if(event.key.keysym.mod & KMOD_ALT) scale = 2.0f;
+                            else scale += 0.5;
                         }
                         break;
                     case SDLK_MINUS:
                         if(event.key.keysym.mod & KMOD_CTRL){  
-                            if(scale > 0.5)
-                                scale -= 0.5;
+                            if(event.key.keysym.mod & KMOD_ALT) scale = 2.0f;
+                            if(scale > 0.5) scale -= 0.5;
                         }
                         break;
                     case SDLK_s:
