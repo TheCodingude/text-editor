@@ -2,4 +2,4 @@ test.*
 glfw.c
 main
 test
-
+.vscode
