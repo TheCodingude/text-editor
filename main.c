@@ -128,37 +128,29 @@ void renderText(char* text, float x, float y, float scale) {
 
 void renderCursor(Editor *editor, float scale) {
     int x = 0, y = 0;
-    // Calculate cursor position in (column, row)
-    // int col = 0, row = 0;
-    // for (int i = 0; i < editor->cursor.pos_in_text; ++i) {
-        //     if (editor->text.data[i] == '\n') {
-            //         row++;
-            //         col = 0;
-    //     } else {
-        //         col++;
-        //     }
-        // }
-        x = 10 + editor->cursor.pos_in_line * FONT_WIDTH * scale;
-        y = 10 + editor->cursor.line * FONT_HEIGHT * scale;
-        glColor3f(1, 1, 1);
-        glBegin(GL_LINES);
-        glVertex2f(x, y);
-        glVertex2f(x, y + (FONT_HEIGHT * scale));
-        glEnd();
-    }
+
+
+    x = 10 + editor->cursor.pos_in_line * FONT_WIDTH * scale;
+    y = 10 + editor->cursor.line * FONT_HEIGHT * scale;
     
-    
+    glColor3f(1, 1, 1);
+    glBegin(GL_LINES);
+    glVertex2f(x, y);
+    glVertex2f(x, y + (FONT_HEIGHT * scale));
+    glEnd();
+}
+
 void render_text_box(Editor *editor, char *buffer, char* prompt, float scale){
     int w, h;
     SDL_GetWindowSize(editor->window, &w, &h);
-
+    
     int prompt_width = strlen(prompt) * FONT_WIDTH * scale;
     
     float x = 0;
     float y = h;
     float x1 = x + w;
     float y1 = (90 * h) / 100;
-
+    
     glColor3f(0.251, 0.251, 0.251);
     glBegin(GL_QUADS);
     glVertex2f(x, y1); // top left
@@ -166,7 +158,17 @@ void render_text_box(Editor *editor, char *buffer, char* prompt, float scale){
     glVertex2f(x1, y); // bottom right
     glVertex2f(x, y); // bottom left
     glEnd();
-
+    
+    // rendering the cursor for the command box thingy
+    int cx = x + 10 + prompt_width + editor->command_cursor.pos_in_text * FONT_WIDTH * scale;
+    int cy = y - 40;
+    
+    glColor3f(1, 1, 1);
+    glBegin(GL_LINES);
+    glVertex2f(cx, cy);
+    glVertex2f(cx, cy + (FONT_HEIGHT * 2.0));
+    glEnd();
+    
     renderText(prompt, x + 10, y - 40, 2.0);
     renderText(editor->command_text.data, x + 10 + prompt_width, y - 40, 2.0);
 }
@@ -287,6 +289,8 @@ int main(int argc, char *argv[]) {
                         }
                         break;
                     case SDLK_F3:
+                        strung_reset(&editor.command_text);
+                        editor.command_cursor.pos_in_text = 0;
                         editor.in_command = !editor.in_command; // TODO: get a better hot key for this, i don't hate f3 but i think it could be better
                         break;
                     case SDLK_LEFT:
@@ -353,9 +357,7 @@ int main(int argc, char *argv[]) {
         if(editor.in_command){
             char buffer[100];
             render_text_box(&editor, buffer, "Enter Command: ", scale);
-
         }else{
-            
             renderCursor(&editor, scale);
         }
         
