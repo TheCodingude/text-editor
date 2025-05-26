@@ -69,6 +69,12 @@ void strung_append_char(Strung* str, char ch) {
     str->data[str->size] = '\0';
 }
 
+void strung_reset(Strung* str) {
+    if (str->data) {
+        str->data[0] = '\0';
+    }
+    str->size = 0;
+}
 
 void strung_free(Strung* str) {
     free(str->data);
