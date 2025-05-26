@@ -10,6 +10,7 @@ typedef struct {
     int capacity;
 } Strung;
 
+
 Strung strung_init(char* str);
 void strung_append(Strung* str, const char* text);
 void strung_append_char(Strung* str, char ch);
@@ -17,6 +18,7 @@ void strung_insert_char(Strung* str, char ch, int position);
 void strung_insert_string(Strung* str, const char* text, int position);
 void strung_remove_char(Strung* str, int position);
 void strung_free(Strung* str);
+void strung_reset(Strung* str);
 
 #endif // STRUNG_H_
 
