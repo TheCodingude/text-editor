@@ -28,11 +28,12 @@ typedef struct {
 typedef struct{
     SDL_Window *window;
     
-    
+    Scroll scroll;
     Cursor cursor;
     char* file_path;
     Strung text;
-    
+    bool selection;
+
     Cursor command_cursor;
     bool in_command;
     Strung command_text;
@@ -40,7 +41,6 @@ typedef struct{
 
 #include "filestuff.h"
 
-Scroll scroll = {0, 0};
 
 void draw_char(char c, float x, float y, float scale) {
     if (c < 32 || c > 126) return; // Only printable ASCII
@@ -248,7 +248,6 @@ void render_text_box(Editor *editor, char *buffer, char* prompt, float scale){
 
 int main(int argc, char *argv[]) {
     Editor editor = {.cursor = {0}, .file_path = "", .text = strung_init(""), .command_text = strung_init(""), .command_cursor = {0}};
-    Scroll scroll = {0, 0};
 
     if (argc > 1){
         open_file(&editor, argv[1]);
@@ -405,10 +404,14 @@ int main(int argc, char *argv[]) {
                         }
                         break;
                     case SDLK_UP:
-                        editor_recalculate_pos_up(&editor);
+                        if(editor.cursor.line > 0){
+                            editor_recalculate_pos_up(&editor);
+                        }
+                        ensure_cursor_visible(&editor, &editor.scroll, scale);
                         break;
                     case SDLK_DOWN:
                         editor_recalculate_pos_down(&editor);
+                        ensure_cursor_visible(&editor, &editor.scroll, scale);
                         break;
                     case SDLK_ESCAPE:
                         running = 0;
@@ -436,14 +439,14 @@ int main(int argc, char *argv[]) {
                         }
                         break;
                     case SDLK_PAGEUP:
-                        scroll.y_offset -= 5;
+                        editor.scroll.y_offset -= 5;
                         editor.cursor.line -= 5;
-                        clamp_scroll(&editor, &scroll, scale);
+                        clamp_scroll(&editor, &editor.scroll, scale);
                         break;
                     case SDLK_PAGEDOWN:
-                        scroll.y_offset += 5;
+                        editor.scroll.y_offset += 5;
                         editor.cursor.line += 5;
-                        clamp_scroll(&editor, &scroll, scale);
+                        clamp_scroll(&editor, &editor.scroll, scale);
                         break;
                     
 
@@ -451,13 +454,13 @@ int main(int argc, char *argv[]) {
                         break;
                 }
             } else if (event.type == SDL_MOUSEWHEEL) {
-                scroll.y_offset -= event.wheel.y;
-                clamp_scroll(&editor, &scroll, scale);
+                editor.scroll.y_offset -= event.wheel.y;
+                clamp_scroll(&editor, &editor.scroll, scale);
             }
         }
 
         // Ensure cursor is visible after any movement
-        ensure_cursor_visible(&editor, &scroll, scale);
+        
 
         int w, h;
         SDL_GetWindowSize(editor.window, &w, &h);
@@ -470,13 +473,13 @@ int main(int argc, char *argv[]) {
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 
-        renderTextScrolled(editor.text.data, 10.0f, 10.0f, scale, &scroll);
+        renderTextScrolled(editor.text.data, 10.0f, 10.0f, scale, &editor.scroll);
 
         if(editor.in_command){
             char buffer[100];
             render_text_box(&editor, buffer, "Enter Command: ", scale);
         }else{
-            renderCursorScrolled(&editor, scale, &scroll);
+            renderCursorScrolled(&editor, scale, &editor.scroll);
         }
 
 
