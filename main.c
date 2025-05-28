@@ -41,6 +41,44 @@ typedef struct{
 
 #include "filestuff.h"
 
+void editor_move_cursor_to_click(Editor* editor, int x, int y, float scale) {
+    int line_height = FONT_HEIGHT * scale;
+    int char_width = FONT_WIDTH * scale;
+
+    // Adjust for padding and scroll
+    int relative_y = y - 10;
+    int relative_x = x - 10;
+
+    int clicked_line = (relative_y / line_height) + editor->scroll.y_offset;
+    int clicked_col  = relative_x / char_width;
+
+    int current_line = 0;
+    int pos = 0;
+
+    // Walk through the text to find the clicked line
+    while (editor->text.data[pos] && current_line < clicked_line) {
+        if (editor->text.data[pos] == '\n') {
+            current_line++;
+        }
+        pos++;
+    }
+
+    // Now we're at the start of the target line
+    int line_start = pos;
+    int col = 0;
+
+    // Move forward in the line to match clicked column
+    while (editor->text.data[pos] && editor->text.data[pos] != '\n' && col < clicked_col) {
+        pos++;
+        col++;
+    }
+
+    editor->cursor.pos_in_text = pos;
+    editor->cursor.line = clicked_line;
+    editor->cursor.pos_in_line = col;
+}
+
+
 
 void draw_char(char c, float x, float y, float scale) {
     if (c < 32 || c > 126) return; // Only printable ASCII
@@ -281,12 +319,12 @@ int main(int argc, char *argv[]) {
 
     float scale = 2.0f;
 
-    int running = 1;
+    bool running = true;
     while (running) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
-                running = 0;
+                running = false;
             } else if (event.type == SDL_TEXTINPUT) {
                 if (!(SDL_GetModState() & KMOD_CTRL) && !editor.in_command) {
                     strung_insert_string(&editor.text, event.text.text, editor.cursor.pos_in_text);
@@ -448,15 +486,21 @@ int main(int argc, char *argv[]) {
                         editor.cursor.line += 5;
                         clamp_scroll(&editor, &editor.scroll, scale);
                         break;
-                    
-
                     default:
                         break;
                 }
             } else if (event.type == SDL_MOUSEWHEEL) {
                 editor.scroll.y_offset -= event.wheel.y;
                 clamp_scroll(&editor, &editor.scroll, scale);
+            } else if(event.type = SDL_MOUSEBUTTONDOWN){
+                if (!editor.in_command && event.button.button == SDL_BUTTON_LEFT) {
+                    int mouse_x = event.button.x;
+                    int mouse_y = event.button.y;
+                
+                    editor_move_cursor_to_click(&editor, mouse_x, mouse_y, scale);
+                }
             }
+
         }
 
         // Ensure cursor is visible after any movement
