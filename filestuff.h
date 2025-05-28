@@ -17,7 +17,7 @@ void open_file(Editor *editor, char* filepath){
         strung_append(&editor->text, buffer);
     }
 
-    editor->cursor.pos_in_text = editor->text.size;
+    // editor->cursor.pos_in_text = editor->text.size;
     
     fclose(f);
 
