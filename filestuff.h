@@ -13,6 +13,8 @@ void open_file(Editor *editor, char* filepath){
 
     char buffer[1024];
 
+    strung_reset(&editor->text);
+
     while(fgets(buffer, sizeof(buffer), f)){
         strung_append(&editor->text, buffer);
     }
