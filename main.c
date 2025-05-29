@@ -19,6 +19,11 @@ typedef struct {
     int y_offset; // vertical 
 } Scroll;
 
+// typedef struct{
+//     int begin;
+//     int end;     im keeping this here in case i need to add more selection related stuff
+// }Selection;
+
 typedef struct {
     int pos_in_text;
     int pos_in_line;
@@ -32,6 +37,10 @@ typedef struct{
     Cursor cursor;
     char* file_path;
     Strung text;
+
+    int selection_start;
+    int selection_end;
+
     bool selection;
 
     Cursor command_cursor;
@@ -40,6 +49,59 @@ typedef struct{
 }Editor;
 
 #include "filestuff.h"
+
+void render_selection(Editor *editor, float scale, Scroll *scroll) {
+    if (!editor->selection || editor->selection_start == editor->selection_end) {
+        return;
+    }
+
+    int sel_start = editor->selection_start;
+    int sel_end = editor->selection_end;
+    if (sel_start > sel_end) {
+        int tmp = sel_start;
+        sel_start = sel_end;
+        sel_end = tmp;
+    }
+
+    int w, h;
+    SDL_GetWindowSize(editor->window, &w, &h);
+    int lines_on_screen = h / (FONT_HEIGHT * scale);
+    int cols_on_screen = w / (FONT_WIDTH * scale);
+
+    int line = 0, col = 0;
+    int i = 0;
+    while (editor->text.data[i]) {
+        if (i >= sel_start && i < sel_end && editor->text.data[i] != '\n') {
+            int draw_line = line - scroll->y_offset;
+            int draw_col = col - scroll->x_offset;
+            if (draw_line >= 0 && draw_line < lines_on_screen &&
+                draw_col >= 0 && draw_col < cols_on_screen) {
+                
+
+
+                float x = 10 + draw_col  * FONT_WIDTH * scale;
+                float y = 10 + draw_line * FONT_HEIGHT * scale;
+                glColor4f(0.2f, 0.5f, 1.0f, 0.3f); // semi-transparent blue
+                glBegin(GL_QUADS);
+                glVertex2f(x, y);
+                glVertex2f(x + FONT_WIDTH * scale, y);
+                glVertex2f(x + FONT_WIDTH * scale, y + FONT_HEIGHT * scale);
+                glVertex2f(x, y + FONT_HEIGHT * scale);
+                glEnd();
+            }
+        }
+        if (editor->text.data[i] == '\n') {
+            line++;
+            col = 0;
+        } else {
+            col++;
+        }
+        i++;
+        if (i >= sel_end) break;
+    }
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f); // reset color
+}
+
 
 void editor_move_cursor_to_click(Editor* editor, int x, int y, float scale) {
     int line_height = FONT_HEIGHT * scale;
@@ -320,6 +382,8 @@ int main(int argc, char *argv[]) {
     float scale = 2.0f;
 
     SDL_EventState(SDL_DROPFILE, SDL_ENABLE); 
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     bool running = true;
     while (running) {
@@ -332,6 +396,7 @@ int main(int argc, char *argv[]) {
                 SDL_free(event.drop.file);
             }
             else if (event.type == SDL_TEXTINPUT) {
+                editor.selection = false;
                 if (!(SDL_GetModState() & KMOD_CTRL) && !editor.in_command) {
                     strung_insert_string(&editor.text, event.text.text, editor.cursor.pos_in_text);
                     editor.cursor.pos_in_text += strlen(event.text.text);
@@ -420,30 +485,54 @@ int main(int argc, char *argv[]) {
                         editor.in_command = !editor.in_command;
                         break;
                     case SDLK_LEFT:
-                        if(editor.in_command){
+                        if (editor.in_command) {
                             if (editor.command_cursor.pos_in_text > 0) {
                                 editor.command_cursor.pos_in_text--;
                             }
-                        } else{
-                            if (editor.cursor.pos_in_text > 0){
+                        } else {
+                            bool shift = (event.key.keysym.mod & KMOD_SHIFT);
+                            if (shift) {
+                                if (!editor.selection) {
+                                    editor.selection = true;
+                                    editor.selection_start = editor.cursor.pos_in_text;
+                                }
+                            } else {
+                                editor.selection = false;
+                            }
+                            if (editor.cursor.pos_in_text > 0) {
                                 editor.cursor.pos_in_text--;
                             }
-                            if(editor.cursor.pos_in_line > 0){
+                            if (editor.cursor.pos_in_line > 0) {
                                 editor.cursor.pos_in_line--;
-                            } else if(editor.cursor.line > 0){
+                            } else if (editor.cursor.line > 0) {
                                 editor.cursor.line--;
+                            }
+                            if (shift) {
+                                editor.selection_end = editor.cursor.pos_in_text;
                             }
                         }
                         break;
                     case SDLK_RIGHT:
-                        if(editor.in_command){
+                        if (editor.in_command) {
                             if (editor.command_cursor.pos_in_text < editor.command_text.size) {
                                 editor.command_cursor.pos_in_text++;
                             }
-                        }else{
-                            if (editor.cursor.pos_in_text < editor.text.size){ 
+                        } else {
+                            bool shift = (event.key.keysym.mod & KMOD_SHIFT);
+                            if (shift) {
+                                if (!editor.selection) {
+                                    editor.selection = true;
+                                    editor.selection_start = editor.cursor.pos_in_text;
+                                }
+                            } else {
+                                editor.selection = false;
+                            }
+                            if (editor.cursor.pos_in_text < editor.text.size) {
                                 editor.cursor.pos_in_text++;
                                 editor.cursor.pos_in_line++;
+                            }
+                            if (shift) {
+                                editor.selection_end = editor.cursor.pos_in_text;
                             }
                         }
                         break;
@@ -509,12 +598,17 @@ int main(int argc, char *argv[]) {
 
         }
 
-        // Ensure cursor is visible after any movement
-        
+        if(editor.selection){
 
+            
+            // printf("Start: %i\n", editor.selection_start);
+            // printf("End:   %i\n", editor.selection_end);
+        }
+        
+        
         int w, h;
         SDL_GetWindowSize(editor.window, &w, &h);
-
+        
         glViewport(0, 0, w, h);
         glClear(GL_COLOR_BUFFER_BIT);
         glMatrixMode(GL_PROJECTION);
@@ -522,16 +616,17 @@ int main(int argc, char *argv[]) {
         glOrtho(0, w, h, 0, -1.0, 1.0);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
-
+        
         renderTextScrolled(editor.text.data, 10.0f, 10.0f, scale, &editor.scroll);
-
+        
         if(editor.in_command){
             char buffer[100];
             render_text_box(&editor, buffer, "Enter Command: ", scale);
         }else{
             renderCursorScrolled(&editor, scale, &editor.scroll);
         }
-
+        
+        render_selection(&editor, scale, &editor.scroll);
 
         SDL_GL_SwapWindow(editor.window);
     }
