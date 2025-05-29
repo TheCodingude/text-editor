@@ -319,13 +319,19 @@ int main(int argc, char *argv[]) {
 
     float scale = 2.0f;
 
+    SDL_EventState(SDL_DROPFILE, SDL_ENABLE); 
+
     bool running = true;
     while (running) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 running = false;
-            } else if (event.type == SDL_TEXTINPUT) {
+            }  else if (event.type == SDL_DROPFILE){ // IT ONLY WORKS WHEN I PUT IT HERE
+                open_file(&editor, event.drop.file); // IT WORKS IM NOT FUCKING TOUCHING IT
+                SDL_free(event.drop.file);
+            }
+            else if (event.type == SDL_TEXTINPUT) {
                 if (!(SDL_GetModState() & KMOD_CTRL) && !editor.in_command) {
                     strung_insert_string(&editor.text, event.text.text, editor.cursor.pos_in_text);
                     editor.cursor.pos_in_text += strlen(event.text.text);
