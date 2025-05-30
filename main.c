@@ -415,7 +415,20 @@ int main(int argc, char *argv[]) {
                         }
                         else if (editor.cursor.pos_in_text > 0) {
                             // Check if deleting a newline
-                            if (editor.text.data[editor.cursor.pos_in_text - 1] == '\n') {
+                            if (editor.selection){
+                                strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
+
+                                int movement = editor.selection_end - editor.selection_start;
+                                editor.cursor.pos_in_line -= movement;
+                                editor.cursor.pos_in_text -= movement;
+
+                                editor.selection = false;
+                                editor.selection_start = 0;
+                                editor.selection_end = 0;
+
+
+                            }
+                            else if (editor.text.data[editor.cursor.pos_in_text - 1] == '\n') {
                                 // Move cursor to end of previous line
                                 int pos = editor.cursor.pos_in_text - 2;
                                 int col = 0;
