@@ -26,14 +26,17 @@ void strung_reset(Strung* str);
 
 Strung strung_init(char* string) {
     Strung str = {0};
-    int cap = strlen(string) + 100;
+    int len = strlen(string);
+    int cap = len + 100;
 
     str.data = (char*)malloc(cap * sizeof(char));
-    str.size = 0;
+    str.size = len;
     str.capacity = cap;
     if (str.data) {
-        str.data[0] = '\0'; // Null-terminate the string
+        memcpy(str.data, string, len);
+        str.data[len] = '\0'; // Null-terminate the string
     }
+    return str;
 }
 
 void strung_append(Strung* str, const char* text) {
@@ -63,6 +66,7 @@ void strung_append_char(Strung* str, char ch) {
             str->capacity = new_capacity;
         } else {
             // Allocation failed
+            printf("oopsie doopsie\n");
             return;
         }
     }
@@ -148,6 +152,25 @@ void strung_remove_char(Strung* str, int position) {
     memmove(str->data + position, str->data + position + 1, str->size - position);
     str->size--;
 }
+
+char* strung_substr(const Strung* str, size_t start, size_t length) {
+    if (!str || start < 0 || length < 0 || start >= str->size) {
+        fprintf(stderr, "cannot take a substring outside of the string\n");
+        return NULL;
+    }
+
+    char* buffer = (char*)malloc((length + 1) * sizeof(char));
+    if (!buffer) {
+        fprintf(stderr, "memory allocation failed\n");
+        return NULL;
+    }
+
+    memcpy(buffer, str->data + start, length);
+    buffer[length] = '\0';
+
+    return buffer;
+}
+
 
 
 
