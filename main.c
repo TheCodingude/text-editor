@@ -40,7 +40,6 @@ typedef struct{
 
     int selection_start;
     int selection_end;
-
     bool selection;
 
     Cursor command_cursor;
@@ -497,6 +496,8 @@ int main(int argc, char *argv[]) {
                                     editor.selection_start = editor.cursor.pos_in_text;
                                 }
                             } else {
+                                editor.selection_start = 0;
+                                editor.selection_end = 0;
                                 editor.selection = false;
                             }
                             if (editor.cursor.pos_in_text > 0) {
@@ -525,6 +526,8 @@ int main(int argc, char *argv[]) {
                                     editor.selection_start = editor.cursor.pos_in_text;
                                 }
                             } else {
+                                editor.selection_start = 0;
+                                editor.selection_end = 0;
                                 editor.selection = false;
                             }
                             if (editor.cursor.pos_in_text < editor.text.size) {
@@ -571,6 +574,23 @@ int main(int argc, char *argv[]) {
                             // open_file();
                         }
                         break;
+                    case SDLK_c:
+                        if(editor.selection){
+                            char* selected = strung_substr(&editor.text, editor.selection_start, editor.selection_end - editor.selection_start);
+                            if(SDL_SetClipboardText(selected) < 0){
+                                fprintf(stderr, "%s could not be copied to clipboard\n", selected);
+                            }
+                        } else {}
+                        break;
+                    case SDLK_v:
+                        if(event.key.keysym.mod & KMOD_CTRL){
+                            char* text = SDL_GetClipboardText();
+                            strung_insert_string(&editor.text, text, editor.cursor.pos_in_text);
+                            editor.cursor.pos_in_line += strlen(text);
+                            editor.cursor.pos_in_text += strlen(text);
+                            SDL_free(text);
+                        }
+                        break;
                     case SDLK_PAGEUP:
                         editor.scroll.y_offset -= 5;
                         editor.cursor.line -= 5;
@@ -598,14 +618,7 @@ int main(int argc, char *argv[]) {
 
         }
 
-        if(editor.selection){
 
-            
-            // printf("Start: %i\n", editor.selection_start);
-            // printf("End:   %i\n", editor.selection_end);
-        }
-        
-        
         int w, h;
         SDL_GetWindowSize(editor.window, &w, &h);
         

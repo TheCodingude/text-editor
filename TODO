@@ -2,8 +2,11 @@ Selection/cursor stuff
 - selection up/down
 - make backspace when selecting remove all selected text
 - make typing when selecting replace the selected text
-- copy/paste from clipboard
 - holding control and +/- should move the cursor(and selection) to the next space or \n
  
 Other
 - scroll bar 
+
+
+DONE:
+- copy/paste from clipboard
