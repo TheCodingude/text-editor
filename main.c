@@ -588,12 +588,14 @@ int main(int argc, char *argv[]) {
                         }
                         break;
                     case SDLK_c:
-                        if(editor.selection){
-                            char* selected = strung_substr(&editor.text, editor.selection_start, editor.selection_end - editor.selection_start);
-                            if(SDL_SetClipboardText(selected) < 0){
-                                fprintf(stderr, "%s could not be copied to clipboard\n", selected);
-                            }
-                        } else {}
+                        if(event.key.keysym.mod & KMOD_CTRL){
+                            if(editor.selection){
+                                char* selected = strung_substr(&editor.text, editor.selection_start, editor.selection_end - editor.selection_start);
+                                if(SDL_SetClipboardText(selected) < 0){
+                                    fprintf(stderr, "%s could not be copied to clipboard\n", selected);
+                                }
+                            } else {}
+                        }
                         break;
                     case SDLK_v:
                         if(event.key.keysym.mod & KMOD_CTRL){
