@@ -171,6 +171,16 @@ char* strung_substr(const Strung* str, size_t start, size_t length) {
     return buffer;
 }
 
+void strung_delete_range(Strung* str, int start, int end) {
+    if (!str || start < 0 || end > str->size || start >= end) {
+        // Invalid range
+        return;
+    }
+    int num_to_remove = end - start;
+    memmove(str->data + start, str->data + end, str->size - end + 1);
+    str->size -= num_to_remove;
+}
+
 
 
 
