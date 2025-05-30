@@ -145,7 +145,7 @@ void draw_char(char c, float x, float y, float scale) {
     if (c < 32 || c > 126) return; // Only printable ASCII
     int idx = c - 32;
     for (int row = 0; row < FONT_HEIGHT; ++row) {
-        unsigned char bits = font8x16[idx][row];
+        unsigned char bits = font[idx][row];
         for (int col = 0; col < FONT_WIDTH; ++col) {
             if (bits & (1 << (7 - col))) {
                 float px = x + col * scale;
@@ -378,7 +378,7 @@ int main(int argc, char *argv[]) {
 
     SDL_StartTextInput();
 
-    float scale = 2.0f;
+    float scale = 1.0f;
 
     SDL_EventState(SDL_DROPFILE, SDL_ENABLE); 
     glEnable(GL_BLEND);
@@ -605,7 +605,7 @@ int main(int argc, char *argv[]) {
                         break;
                 }
             } else if (event.type == SDL_MOUSEWHEEL) {
-                editor.scroll.y_offset -= event.wheel.y;
+                editor.scroll.y_offset -= event.wheel.y * 10;
                 clamp_scroll(&editor, &editor.scroll, scale);
             } else if(event.type = SDL_MOUSEBUTTONDOWN){
                 if (!editor.in_command && event.button.button == SDL_BUTTON_LEFT) {
