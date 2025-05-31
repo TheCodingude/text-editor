@@ -587,6 +587,18 @@ int main(int argc, char *argv[]) {
                             // open_file();
                         }
                         break;
+                    case SDLK_x:
+                        if(event.key.keysym.mod & KMOD_CTRL){
+                            if(editor.selection){
+                                char* selected = strung_substr(&editor.text, editor.selection_start, editor.selection_end - editor.selection_start);
+                                if(SDL_SetClipboardText(selected) < 0){
+                                    fprintf(stderr, "%s could not be copied to clipboard\n", selected);
+                                }
+                                strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
+                                editor.selection = false;
+                            } else {}                            
+                        }
+
                     case SDLK_c:
                         if(event.key.keysym.mod & KMOD_CTRL){
                             if(editor.selection){
