@@ -395,7 +395,12 @@ int main(int argc, char *argv[]) {
                 SDL_free(event.drop.file);
             }
             else if (event.type == SDL_TEXTINPUT) {
-                editor.selection = false;
+                if(editor.selection){
+                    strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
+                    editor.cursor.pos_in_line -= editor.selection_end - editor.selection_start;
+                    editor.cursor.pos_in_text -= editor.selection_end - editor.selection_start;
+                    editor.selection = false;
+                }
                 if (!(SDL_GetModState() & KMOD_CTRL) && !editor.in_command) {
                     strung_insert_string(&editor.text, event.text.text, editor.cursor.pos_in_text);
                     editor.cursor.pos_in_text += strlen(event.text.text);
