@@ -506,6 +506,7 @@ int main(int argc, char *argv[]) {
                             }
                         } else {
                             bool shift = (event.key.keysym.mod & KMOD_SHIFT);
+                            bool ctrl = (event.key.keysym.mod & KMOD_CTRL);
                             if (shift) {
                                 if (!editor.selection) {
                                     editor.selection = true;
@@ -516,27 +517,48 @@ int main(int argc, char *argv[]) {
                                 editor.selection_end = 0;
                                 editor.selection = false;
                             }
-                            // If at start of line, move to end of previous line
-                            int pos = editor.cursor.pos_in_text;
-                            if (pos > 0 && editor.cursor.pos_in_line == 0) {
-                                pos--; // move to previous character (should be '\n')
-                                int col = 0;
-                                // Count backwards to previous '\n' or start
-                                int scan = pos;
-                                while (scan > 0 && editor.text.data[scan - 1] != '\n') {
-                                    scan--;
-                                    col++;
+                            if (ctrl) {
+                                // Move left to previous space or newline
+                                int pos = editor.cursor.pos_in_text;
+                                if (pos > 0) {
+                                    pos--;
+                                    // skip over current spaces or \n
+                                    while (pos > 0 && (editor.text.data[pos] == ' ' || editor.text.data[pos] == '\n')) {
+                                        pos--;
+                                    }
+                                    
+                                    while (pos > 0 && editor.text.data[pos] != ' ' && editor.text.data[pos] != '\n') { // move to previous space or \n
+                                        pos--;
+                                    }
+                                    // If we stopped at a space or \n move after it unless at start
+                                    if (pos > 0) pos++;
+                                    editor.cursor.pos_in_text = pos;
+                                    // Recalculate line and col
+                                    editor_recalc_cursor_pos_and_line(&editor);
                                 }
-                                editor.cursor.pos_in_text = pos;
-                                editor.cursor.line--;
-                                editor.cursor.pos_in_line = col;
-                            } else if (editor.text.data[editor.cursor.pos_in_text-1] == '\n') {
-                                editor.cursor.line--;
-                                editor_recalculate_cursor_pos(&editor);
-                            } else if (editor.cursor.pos_in_text > 0) {
-                                editor.cursor.pos_in_text--;
-                                if (editor.cursor.pos_in_line > 0) {
-                                    editor.cursor.pos_in_line--;
+                            } else {
+                                // If at start of line, move to end of previous line
+                                int pos = editor.cursor.pos_in_text;
+                                if (pos > 0 && editor.cursor.pos_in_line == 0) {
+                                    pos--; // move to previous character (should be '\n')
+                                    int col = 0;
+                                    // Count backwards to previous '\n' or start
+                                    int scan = pos;
+                                    while (scan > 0 && editor.text.data[scan - 1] != '\n') {
+                                        scan--;
+                                        col++;
+                                    }
+                                    editor.cursor.pos_in_text = pos;
+                                    editor.cursor.line--;
+                                    editor.cursor.pos_in_line = col;
+                                } else if (editor.text.data[editor.cursor.pos_in_text-1] == '\n') {
+                                    editor.cursor.line--;
+                                    editor_recalculate_cursor_pos(&editor);
+                                } else if (editor.cursor.pos_in_text > 0) {
+                                    editor.cursor.pos_in_text--;
+                                    if (editor.cursor.pos_in_line > 0) {
+                                        editor.cursor.pos_in_line--;
+                                    }
                                 }
                             }
                             if (shift) {
@@ -551,6 +573,7 @@ int main(int argc, char *argv[]) {
                             }
                         } else {
                             bool shift = (event.key.keysym.mod & KMOD_SHIFT);
+                            bool ctrl = (event.key.keysym.mod & KMOD_CTRL);
                             if (shift) {
                                 if (!editor.selection) {
                                     editor.selection = true;
@@ -561,15 +584,27 @@ int main(int argc, char *argv[]) {
                                 editor.selection_end = 0;
                                 editor.selection = false;
                             }
-                            if (editor.text.data[editor.cursor.pos_in_text] == '\n'){
-                                editor.cursor.pos_in_line = 0;
-                                editor.cursor.line++;
-                                editor.cursor.pos_in_text++;
+                            if (ctrl) {
+                                int pos = editor.cursor.pos_in_text;
+                                int len = editor.text.size;
+                                while (pos < len && (editor.text.data[pos] == ' ' || editor.text.data[pos] == '\n')) { // Skip over any current spaces/newline
+                                    pos++;
+                                }
                                 
-                            }
-                            else if (editor.cursor.pos_in_text < editor.text.size) {
-                                editor.cursor.pos_in_text++;
-                                editor.cursor.pos_in_line++;
+                                while (pos < len && editor.text.data[pos] != ' ' && editor.text.data[pos] != '\n') { // Move to next space/newline or end
+                                    pos++;
+                                }
+                                editor.cursor.pos_in_text = pos;
+                                editor_recalc_cursor_pos_and_line(&editor);
+                            } else {
+                                if (editor.text.data[editor.cursor.pos_in_text] == '\n') {
+                                    editor.cursor.pos_in_line = 0;
+                                    editor.cursor.line++;
+                                    editor.cursor.pos_in_text++;
+                                } else if (editor.cursor.pos_in_text < editor.text.size) {
+                                    editor.cursor.pos_in_text++;
+                                    editor.cursor.pos_in_line++;
+                                }
                             }
                             if (shift) {
                                 editor.selection_end = editor.cursor.pos_in_text;

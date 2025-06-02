@@ -1,11 +1,11 @@
-Selection/cursor stuff
-- holding control and left/right arrow should move the cursor(and selection) to the next space or \n
+
  
 Other
 - scroll bar 
 
 
 DONE:
+- holding control and left/right arrow should move the cursor(and selection) to the next space or \n
 - selection up/down
 - make typing when selecting replace the selected text
 - copy/paste from clipboard
