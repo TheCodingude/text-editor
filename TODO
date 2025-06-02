@@ -1,5 +1,4 @@
 Selection/cursor stuff
-- selection up/down
 - holding control and left/right arrow should move the cursor(and selection) to the next space or \n
  
 Other
@@ -7,6 +6,7 @@ Other
 
 
 DONE:
+- selection up/down
 - make typing when selecting replace the selected text
 - copy/paste from clipboard
 - make backspace when selecting remove all selected text
