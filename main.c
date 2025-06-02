@@ -242,35 +242,8 @@ void renderCursorScrolled(Editor *editor, float scale, Scroll *scroll) {
     glEnd();
 }
 
-void editor_recalculate_pos_up(Editor* editor){
-    int target_line = editor->cursor.line - 1;
-    int col = editor->cursor.pos_in_line;
-    int pos = 0;
-    int current_line = 0;
-    int current_col = 0;
-    
-    while (editor->text.data[pos] && current_line < target_line) {
-        if (editor->text.data[pos] == '\n') {
-            current_line++;
-        }
-        pos++;
-    }
-    
-    int line_start = pos;
-    
-    while (editor->text.data[pos] && editor->text.data[pos] != '\n' && current_col < col) {
-        pos++;
-        current_col++;
-    }
-    editor->cursor.pos_in_text = pos;
-    editor->cursor.pos_in_line = current_col;
-    if(editor->cursor.line > 0){
-        editor->cursor.line--;
-    }
-}
-
-void editor_recalculate_pos_down(Editor* editor){
-    int target_line = editor->cursor.line + 1;
+void editor_recalculate_cursor_pos(Editor* editor){
+    int target_line = editor->cursor.line;
     int col = editor->cursor.pos_in_line;
     int pos = 0;
     int current_line = 0;
@@ -295,8 +268,28 @@ void editor_recalculate_pos_down(Editor* editor){
     }
     editor->cursor.pos_in_text = pos;
     editor->cursor.pos_in_line = current_col;
-    editor->cursor.line++;
 }
+
+void editor_recalc_cursor_pos_and_line(Editor* editor){
+    int pos = editor->cursor.pos_in_text;
+    int line = 0;
+    int col = 0;
+
+    for (int i = 0; i < pos && editor->text.data[i]; ++i) {
+        if (editor->text.data[i] == '\n') {
+            line++;
+            col = 0;
+        } else {
+            col++;
+        }
+    }
+    editor->cursor.line = line;
+    editor->cursor.pos_in_line = col;
+}
+
+
+
+
 
 void renderText(char* text, float x, float y, float scale) {
     glColor3f(1.0f, 1.0f, 1.0f);
@@ -347,6 +340,8 @@ void render_text_box(Editor *editor, char *buffer, char* prompt, float scale){
 
 int main(int argc, char *argv[]) {
     Editor editor = {.cursor = {0}, .file_path = "", .text = strung_init(""), .command_text = strung_init(""), .command_cursor = {0}};
+
+    bool line_switch = false;
 
     if (argc > 1){
         open_file(&editor, argv[1]);
@@ -399,6 +394,8 @@ int main(int argc, char *argv[]) {
                     strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
                     editor.cursor.pos_in_line -= editor.selection_end - editor.selection_start;
                     editor.cursor.pos_in_text -= editor.selection_end - editor.selection_start;
+                    editor.selection_start = 0;
+                    editor.selection_end = 0;
                     editor.selection = false;
                 }
                 if (!(SDL_GetModState() & KMOD_CTRL) && !editor.in_command) {
@@ -419,20 +416,21 @@ int main(int argc, char *argv[]) {
                             }
                         }
                         else if (editor.cursor.pos_in_text > 0) {
-                            // Check if deleting a newline
-                            if (editor.selection){
+
+                            if (editor.selection) {
+                                if (editor.selection_end < editor.selection_start) {
+                                    int temp = editor.selection_end;
+                                    editor.selection_end = editor.selection_start;
+                                    editor.selection_start = temp;
+                                }
                                 strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
-
-                                int movement = editor.selection_end - editor.selection_start;
-                                editor.cursor.pos_in_line -= movement;
-                                editor.cursor.pos_in_text -= movement;
-
+                                editor.cursor.pos_in_text = editor.selection_start;
                                 editor.selection = false;
                                 editor.selection_start = 0;
                                 editor.selection_end = 0;
-
-
+                                editor_recalc_cursor_pos_and_line(&editor);
                             }
+
                             else if (editor.text.data[editor.cursor.pos_in_text - 1] == '\n') {
                                 // Move cursor to end of previous line
                                 int pos = editor.cursor.pos_in_text - 2;
@@ -518,13 +516,28 @@ int main(int argc, char *argv[]) {
                                 editor.selection_end = 0;
                                 editor.selection = false;
                             }
-                            if (editor.cursor.pos_in_text > 0) {
-                                editor.cursor.pos_in_text--;
-                            }
-                            if (editor.cursor.pos_in_line > 0) {
-                                editor.cursor.pos_in_line--;
-                            } else if (editor.cursor.line > 0) {
+                            // If at start of line, move to end of previous line
+                            int pos = editor.cursor.pos_in_text;
+                            if (pos > 0 && editor.cursor.pos_in_line == 0) {
+                                pos--; // move to previous character (should be '\n')
+                                int col = 0;
+                                // Count backwards to previous '\n' or start
+                                int scan = pos;
+                                while (scan > 0 && editor.text.data[scan - 1] != '\n') {
+                                    scan--;
+                                    col++;
+                                }
+                                editor.cursor.pos_in_text = pos;
                                 editor.cursor.line--;
+                                editor.cursor.pos_in_line = col;
+                            } else if (editor.text.data[editor.cursor.pos_in_text-1] == '\n') {
+                                editor.cursor.line--;
+                                editor_recalculate_cursor_pos(&editor);
+                            } else if (editor.cursor.pos_in_text > 0) {
+                                editor.cursor.pos_in_text--;
+                                if (editor.cursor.pos_in_line > 0) {
+                                    editor.cursor.pos_in_line--;
+                                }
                             }
                             if (shift) {
                                 editor.selection_end = editor.cursor.pos_in_text;
@@ -548,7 +561,13 @@ int main(int argc, char *argv[]) {
                                 editor.selection_end = 0;
                                 editor.selection = false;
                             }
-                            if (editor.cursor.pos_in_text < editor.text.size) {
+                            if (editor.text.data[editor.cursor.pos_in_text] == '\n'){
+                                editor.cursor.pos_in_line = 0;
+                                editor.cursor.line++;
+                                editor.cursor.pos_in_text++;
+                                
+                            }
+                            else if (editor.cursor.pos_in_text < editor.text.size) {
                                 editor.cursor.pos_in_text++;
                                 editor.cursor.pos_in_line++;
                             }
@@ -559,12 +578,16 @@ int main(int argc, char *argv[]) {
                         break;
                     case SDLK_UP:
                         if(editor.cursor.line > 0){
-                            editor_recalculate_pos_up(&editor);
+                            editor.cursor.line--;
+                            editor_recalculate_cursor_pos(&editor);
                         }
                         ensure_cursor_visible(&editor, &editor.scroll, scale);
                         break;
                     case SDLK_DOWN:
-                        editor_recalculate_pos_down(&editor);
+                    
+                        editor.cursor.line++;
+                        editor_recalculate_cursor_pos(&editor);
+                        
                         ensure_cursor_visible(&editor, &editor.scroll, scale);
                         break;
                     case SDLK_ESCAPE:
@@ -600,6 +623,8 @@ int main(int argc, char *argv[]) {
                                     fprintf(stderr, "%s could not be copied to clipboard\n", selected);
                                 }
                                 strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
+                                editor.selection_start = 0;
+                                editor.selection_end = 0;
                                 editor.selection = false;
                             } else {}                            
                         }
