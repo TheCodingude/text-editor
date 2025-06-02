@@ -577,16 +577,44 @@ int main(int argc, char *argv[]) {
                         }
                         break;
                     case SDLK_UP:
-                        if(editor.cursor.line > 0){
+                        if (editor.cursor.line > 0) {
+                            bool shift = (event.key.keysym.mod & KMOD_SHIFT);
+                            if (shift) {
+                                if (!editor.selection) {
+                                    editor.selection = true;
+                                    editor.selection_start = editor.cursor.pos_in_text;
+                                }
+                            } else {
+                                editor.selection_start = 0;
+                                editor.selection_end = 0;
+                                editor.selection = false;
+                            }
                             editor.cursor.line--;
                             editor_recalculate_cursor_pos(&editor);
+                            if (shift) {
+                                editor.selection_end = editor.cursor.pos_in_text;
+                            }
                         }
                         ensure_cursor_visible(&editor, &editor.scroll, scale);
                         break;
                     case SDLK_DOWN:
-                    
+                        
+                        bool shift = (event.key.keysym.mod & KMOD_SHIFT);
+                        if (shift) {
+                            if (!editor.selection) {
+                                editor.selection = true;
+                                editor.selection_start = editor.cursor.pos_in_text;
+                            }
+                        } else {
+                            editor.selection_start = 0;
+                            editor.selection_end = 0;
+                            editor.selection = false;
+                        }
                         editor.cursor.line++;
                         editor_recalculate_cursor_pos(&editor);
+                        if (shift) {
+                            editor.selection_end = editor.cursor.pos_in_text;
+                        }
                         
                         ensure_cursor_visible(&editor, &editor.scroll, scale);
                         break;
