@@ -308,9 +308,10 @@ void renderText(char* text, float x, float y, float scale) {
 void render_text_box(Editor *editor, char *buffer, char* prompt, float scale){
     int w, h;
     SDL_GetWindowSize(editor->window, &w, &h);
-    
-    int prompt_width = strlen(prompt) * FONT_WIDTH * scale;
-    
+
+    float scale_prompt = 2.0f;
+    int prompt_width = strlen(prompt) * FONT_WIDTH * scale_prompt;
+
     float x = 0;
     float y = h;
     float x1 = x + w;
@@ -323,19 +324,25 @@ void render_text_box(Editor *editor, char *buffer, char* prompt, float scale){
     glVertex2f(x1, y); // bottom right
     glVertex2f(x, y); // bottom left
     glEnd();
-    
-    // rendering the cursor for the command box thingy
-    int cx = x + 10 + prompt_width + editor->command_cursor.pos_in_text * FONT_WIDTH * scale;
-    int cy = y - 40;
-    
+
+    // prompt
+    float prompt_x = x + 10;
+    float prompt_y = y - 40;
+    renderText(prompt, prompt_x, prompt_y, scale_prompt);
+
+    // command text
+    float cmd_x = prompt_x + prompt_width;
+    renderText(editor->command_text.data, cmd_x, prompt_y, scale_prompt);
+
+    // cursor
+    int cx = cmd_x + editor->command_cursor.pos_in_text * FONT_WIDTH * scale_prompt;
+    int cy = prompt_y;
+
     glColor3f(1, 1, 1);
     glBegin(GL_LINES);
     glVertex2f(cx, cy);
-    glVertex2f(cx, cy + (FONT_HEIGHT * 2.0));
+    glVertex2f(cx, cy + (FONT_HEIGHT * scale_prompt));
     glEnd();
-    
-    renderText(prompt, x + 10, y - 40, 2.0);
-    renderText(editor->command_text.data, x + 10 + prompt_width, y - 40, 2.0);
 }
 
 int main(int argc, char *argv[]) {
