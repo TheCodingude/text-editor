@@ -727,12 +727,55 @@ int main(int argc, char *argv[]) {
             } else if (event.type == SDL_MOUSEWHEEL) {
                 editor.scroll.y_offset -= event.wheel.y * 10;
                 clamp_scroll(&editor, &editor.scroll, scale);
-            } else if(event.type = SDL_MOUSEBUTTONDOWN){
-                if (!editor.in_command && event.button.button == SDL_BUTTON_LEFT) {
-                    int mouse_x = event.button.x;
-                    int mouse_y = event.button.y;
-                
-                    editor_move_cursor_to_click(&editor, mouse_x, mouse_y, scale);
+            } else if(event.type == SDL_MOUSEBUTTONDOWN){
+                static Uint32 last_click_time = 0;
+                static int last_click_x = 0, last_click_y = 0;
+                Uint32 now = SDL_GetTicks();
+                int double_click_distance = 5; // pixels
+
+                if (event.button.button == SDL_BUTTON_LEFT && !editor.in_command) {        
+                    bool is_double_click = (now - last_click_time < 500 &&
+                        abs(event.button.x - last_click_x) < double_click_distance &&
+                        abs(event.button.y - last_click_y) < double_click_distance);
+
+                    if (is_double_click) {
+                        editor_move_cursor_to_click(&editor, event.button.x, event.button.y, scale);
+
+                        // Find word boundaries
+                        int start = editor.cursor.pos_in_text;
+                        int end = editor.cursor.pos_in_text;
+                        char *data = editor.text.data;
+                        int len = editor.text.size;
+
+                        // Move start left to word boundary
+                        while (start > 0 && ((data[start-1] >= 'a' && data[start-1] <= 'z') ||
+                                             (data[start-1] >= 'A' && data[start-1] <= 'Z') ||      // double clicking highlights word
+                                             (data[start-1] >= '0' && data[start-1] <= '9') ||
+                                             data[start-1] == '_')) {
+                            start--;
+                        }
+                        // Move end right to word boundary
+                        while (end < len && ((data[end] >= 'a' && data[end] <= 'z') ||
+                                             (data[end] >= 'A' && data[end] <= 'Z') ||
+                                             (data[end] >= '0' && data[end] <= '9') ||
+                                             data[end] == '_')) {
+                            end++;
+                        }
+                        editor.selection = true;
+                        editor.selection_start = start;
+                        editor.selection_end = end;
+                        editor.cursor.pos_in_text = end;
+                        editor_recalc_cursor_pos_and_line(&editor);
+                    } else {
+                        // Single click: just move cursor, do not select
+                        editor.selection = false;
+                        editor.selection_start = 0;
+                        editor.selection_end = 0;
+                        editor_move_cursor_to_click(&editor, event.button.x, event.button.y, scale);
+                    }
+                    last_click_time = now;
+                    last_click_x = event.button.x;
+                    last_click_y = event.button.y;
                 }
             }
 
