@@ -345,6 +345,58 @@ void render_text_box(Editor *editor, char *buffer, char* prompt, float scale){
     glEnd();
 }
 
+void render_scrollbar(Editor *editor, float scale) {
+    int w, h;
+    SDL_GetWindowSize(editor->window, &w, &h);
+
+    // Calculate total lines in text
+    int total_lines = 1;
+    for (int i = 0; editor->text.data[i]; ++i) {
+        if (editor->text.data[i] == '\n') total_lines++;
+    }
+
+    int lines_on_screen = h / (FONT_HEIGHT * scale);
+
+    // Scrollbar dimensions
+    float bar_width = 12.0f;
+    float bar_x = w - bar_width - 2;
+    float bar_y = 10.0f;
+    float bar_height = h - 20.0f;
+
+    // Thumb size and position
+    float thumb_height = (total_lines > 0) ? (bar_height * lines_on_screen) / total_lines : bar_height;
+    if (thumb_height < 20.0f) thumb_height = 20.0f;
+    if (thumb_height > bar_height) thumb_height = bar_height;
+
+    float max_offset = (total_lines > lines_on_screen) ? (total_lines - lines_on_screen) : 1;
+    float thumb_y = bar_y;
+    if (max_offset > 0)
+        thumb_y += (bar_height - thumb_height) * ((float)editor->scroll.y_offset / max_offset);
+
+    // Draw scrollbar background
+    glColor4f(0.18f, 0.18f, 0.18f, 0.8f);
+    glBegin(GL_QUADS);
+    glVertex2f(bar_x, bar_y);
+    glVertex2f(bar_x + bar_width, bar_y);
+    glVertex2f(bar_x + bar_width, bar_y + bar_height);
+    glVertex2f(bar_x, bar_y + bar_height);
+    glEnd();
+
+    // Draw thumb
+    glColor4f(0.3f, 0.5f, 0.9f, 0.9f);
+    glBegin(GL_QUADS);
+    glVertex2f(bar_x + 2, thumb_y);
+    glVertex2f(bar_x + bar_width - 2, thumb_y);
+    glVertex2f(bar_x + bar_width - 2, thumb_y + thumb_height);
+    glVertex2f(bar_x + 2, thumb_y + thumb_height);
+    glEnd();
+}
+
+
+
+
+
+
 int main(int argc, char *argv[]) {
     Editor editor = {.cursor = {0}, .file_path = "", .text = strung_init(""), .command_text = strung_init(""), .command_cursor = {0}};
 
@@ -410,8 +462,10 @@ int main(int argc, char *argv[]) {
                     editor.cursor.pos_in_text += strlen(event.text.text);
                     editor.cursor.pos_in_line += strlen(event.text.text);
                 } else if(editor.in_command){
-                    strung_insert_string(&editor.command_text, event.text.text, editor.command_cursor.pos_in_text);
-                    editor.command_cursor.pos_in_text += strlen(event.text.text);
+                    if(!(SDL_GetModState() & KMOD_CTRL)){
+                        strung_insert_string(&editor.command_text, event.text.text, editor.command_cursor.pos_in_text);
+                        editor.command_cursor.pos_in_text += strlen(event.text.text);
+                    }
                 }
             } else if (event.type == SDL_KEYDOWN) {
                 switch (event.key.keysym.sym) {
@@ -735,6 +789,109 @@ int main(int argc, char *argv[]) {
                 editor.scroll.y_offset -= event.wheel.y * 10;
                 clamp_scroll(&editor, &editor.scroll, scale);
             } else if(event.type == SDL_MOUSEBUTTONDOWN){
+                if (event.button.button == SDL_BUTTON_LEFT && !editor.in_command) {
+
+                // Check if mouse is over the scrollbar
+                int win_w, win_h;
+                SDL_GetWindowSize(editor.window, &win_w, &win_h);
+                float bar_width = 12.0f;
+                float bar_x = win_w - bar_width - 2;
+                float bar_y = 10.0f;
+                float bar_height = win_h - 20.0f;
+
+                if (event.button.x >= bar_x && event.button.x <= bar_x + bar_width &&
+                    event.button.y >= bar_y && event.button.y <= bar_y + bar_height) {
+                    int total_lines = 1;
+                    for (int i = 0; editor.text.data[i]; ++i) {
+                        if (editor.text.data[i] == '\n') total_lines++;
+                    }
+                    int lines_on_screen = win_h / (FONT_HEIGHT * scale);
+                    float thumb_height = (total_lines > 0) ? (bar_height * lines_on_screen) / total_lines : bar_height;
+                    if (thumb_height < 20.0f) thumb_height = 20.0f;
+                    if (thumb_height > bar_height) thumb_height = bar_height;
+                    float max_offset = (total_lines > lines_on_screen) ? (total_lines - lines_on_screen) : 1;
+
+                    // Calculate where the click happened relative to the bar
+                    float click_y = event.button.y - bar_y;
+                    float thumb_y = 0.0f;
+                    if (max_offset > 0)
+                        thumb_y = (bar_height - thumb_height) * ((float)editor.scroll.y_offset / max_offset);
+
+                    // If click is on the thumb, start dragging
+                    if (click_y >= thumb_y && click_y <= thumb_y + thumb_height) {
+                        bool dragging = true;
+                        int drag_offset = click_y - thumb_y;
+                        // Save current GL context and window
+                        SDL_Window* win = editor.window;
+                        SDL_GLContext ctx = SDL_GL_GetCurrentContext();
+
+                        while (dragging) {
+                            SDL_Event drag_event;
+                            // Use SDL_WaitEventTimeout to avoid busy loop and allow redraw
+                            if (SDL_WaitEventTimeout(&drag_event, 10)) {
+                                if (drag_event.type == SDL_MOUSEBUTTONUP && drag_event.button.button == SDL_BUTTON_LEFT) {
+                                    dragging = false;
+                                    break;
+                                } else if (drag_event.type == SDL_MOUSEMOTION) {
+                                    float new_thumb_y = drag_event.motion.y - bar_y - drag_offset;
+                                    if (new_thumb_y < 0) new_thumb_y = 0;
+                                    if (new_thumb_y > bar_height - thumb_height) new_thumb_y = bar_height - thumb_height;
+                                    int new_offset = (int)((new_thumb_y / (bar_height - thumb_height)) * max_offset + 0.5f);
+                                    if (new_offset < 0) new_offset = 0;
+                                    if (new_offset > max_offset) new_offset = max_offset;
+                                    editor.scroll.y_offset = new_offset;
+                                    clamp_scroll(&editor, &editor.scroll, scale);
+
+                                    // Redraw immediately while dragging
+                                    int w, h;
+                                    SDL_GetWindowSize(editor.window, &w, &h);
+                                    glViewport(0, 0, w, h);
+                                    glClear(GL_COLOR_BUFFER_BIT);
+                                    glMatrixMode(GL_PROJECTION);
+                                    glLoadIdentity();
+                                    glOrtho(0, w, h, 0, -1.0, 1.0);
+                                    glMatrixMode(GL_MODELVIEW);
+                                    glLoadIdentity();
+
+                                    renderTextScrolled(editor.text.data, 10.0f, 10.0f, scale, &editor.scroll);
+                                    render_scrollbar(&editor, scale);
+
+                                    if(editor.in_command){
+                                        char buffer[100];
+                                        render_text_box(&editor, buffer, "Enter Command: ", scale);
+                                    }else{
+                                        renderCursorScrolled(&editor, scale, &editor.scroll);
+                                    }
+
+                                    render_selection(&editor, scale, &editor.scroll);
+
+                                    SDL_GL_SwapWindow(editor.window);
+                                } else if (drag_event.type == SDL_QUIT) {
+                                    dragging = false;
+                                    running = false;
+                                    break;
+                                }
+                            }
+                        }
+                        // Don't move cursor or select text if scrollbar was dragged
+                        break;
+                    } else {
+                        // Clicked on scrollbar background: scroll to that spot
+                        float thumb_center = thumb_height / 2.0f;
+                        float new_thumb_y = click_y - thumb_center;
+                        if (new_thumb_y < 0) new_thumb_y = 0;
+                        if (new_thumb_y > bar_height - thumb_height) new_thumb_y = bar_height - thumb_height;
+                        int new_offset = (int)((new_thumb_y / (bar_height - thumb_height)) * max_offset + 0.5f);
+                        if (new_offset < 0) new_offset = 0;
+                        if (new_offset > max_offset) new_offset = max_offset;
+                        editor.scroll.y_offset = new_offset;
+                        clamp_scroll(&editor, &editor.scroll, scale);
+                        // Don't move cursor or select text if scrollbar was clicked
+                        break;
+                    }
+                }
+
+                
                 static Uint32 last_click_time = 0;
                 static int last_click_x = 0, last_click_y = 0;
                 Uint32 now = SDL_GetTicks();
@@ -785,6 +942,7 @@ int main(int argc, char *argv[]) {
                     last_click_y = event.button.y;
                 }
             }
+        }
 
         }
 
@@ -801,6 +959,7 @@ int main(int argc, char *argv[]) {
         glLoadIdentity();
         
         renderTextScrolled(editor.text.data, 10.0f, 10.0f, scale, &editor.scroll);
+        render_scrollbar(&editor, scale);
         
         if(editor.in_command){
             char buffer[100];
@@ -822,3 +981,4 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
+

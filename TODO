@@ -1,10 +1,11 @@
-
+- file browser 
+- number lines
  
-Other
-- scroll bar 
+
 
 
 DONE:
+- scroll bar 
 - holding control and left/right arrow should move the cursor(and selection) to the next space or \n
 - selection up/down
 - make typing when selecting replace the selected text
