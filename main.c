@@ -449,7 +449,11 @@ void render_line_numbers(Editor *editor, float scale) {
 
     for (int i = first_line; i < last_line; ++i) {
         snprintf(buf, sizeof(buf), "%3d", i + 1);
-        renderText(buf, x, y + (i - first_line) * FONT_HEIGHT * scale, scale, vec4f(1.0f, 1.0f, 1.0f, 0.5f));
+        if (i == editor->cursor.line){
+            renderText(buf, x, y + (i - first_line) * FONT_HEIGHT * scale, scale, vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+        } else{
+            renderText(buf, x, y + (i - first_line) * FONT_HEIGHT * scale, scale, vec4f(1.0f, 1.0f, 1.0f, 0.4f));
+        }
     }
 }
 
