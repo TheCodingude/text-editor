@@ -11,6 +11,9 @@
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
+
+
+
 #define FONT_8X16
 #include "font.h"
 
@@ -62,6 +65,10 @@ typedef struct{
 }Editor;
 
 #include "filestuff.h"
+#include "la.c"
+
+#define WHITE vec4f(1.0f, 1.0f, 1.0f, 1.0f)
+#define LINE_NUMS_OFFSET (FONT_WIDTH * scale) * 5.0f + 10.0f
 
 void render_selection(Editor *editor, float scale, Scroll *scroll) {
     if (!editor->selection || editor->selection_start == editor->selection_end) {
@@ -81,6 +88,9 @@ void render_selection(Editor *editor, float scale, Scroll *scroll) {
     int lines_on_screen = h / (FONT_HEIGHT * scale);
     int cols_on_screen = w / (FONT_WIDTH * scale);
 
+    // Offset for line nums
+    float line_number_offset = LINE_NUMS_OFFSET;
+
     int line = 0, col = 0;
     int i = 0;
     while (editor->text.data[i]) {
@@ -89,10 +99,8 @@ void render_selection(Editor *editor, float scale, Scroll *scroll) {
             int draw_col = col - scroll->x_offset;
             if (draw_line >= 0 && draw_line < lines_on_screen &&
                 draw_col >= 0 && draw_col < cols_on_screen) {
-                
 
-
-                float x = 10 + draw_col  * FONT_WIDTH * scale;
+                float x = line_number_offset + draw_col * FONT_WIDTH * scale;
                 float y = 10 + draw_line * FONT_HEIGHT * scale;
                 glColor4f(0.2f, 0.5f, 1.0f, 0.3f); // semi-transparent blue
                 glBegin(GL_QUADS);
@@ -122,7 +130,7 @@ void editor_move_cursor_to_click(Editor* editor, int x, int y, float scale) {
 
     // Adjust for padding and scroll
     int relative_y = y - 10;
-    int relative_x = x - 10;
+    int relative_x = x - (LINE_NUMS_OFFSET); // account for line numbas
 
     int clicked_line = (relative_y / line_height) + editor->scroll.y_offset;
     int clicked_col  = relative_x / char_width;
@@ -133,6 +141,13 @@ void editor_move_cursor_to_click(Editor* editor, int x, int y, float scale) {
 
     Line line = editor->lines.lines[clicked_line];
     int line_length = line.end - line.start;
+
+    if (relative_x < 0) {
+        editor->cursor.pos_in_text = line.start;
+        editor->cursor.line = clicked_line;
+        editor->cursor.pos_in_line = 0;
+        return;
+    }
 
     // Clamp col to line length
     if (clicked_col < 0) clicked_col = 0;
@@ -207,7 +222,8 @@ void ensure_cursor_visible(Editor *editor, Scroll *scroll, float scale) {
     clamp_scroll(editor, scroll, scale);
 }
 
-void renderTextScrolled(char* text, float x, float y, float scale, Scroll *scroll) {
+void renderTextScrolled(char* text, float x, float y, float scale, Scroll *scroll, Vec4f color) {
+    glColor4f(color.x, color.y, color.z, color.w);
     int w, h;
     SDL_GetWindowSize(SDL_GL_GetCurrentWindow(), &w, &h);
     int lines_on_screen = h / (FONT_HEIGHT * scale);
@@ -237,8 +253,10 @@ void renderTextScrolled(char* text, float x, float y, float scale, Scroll *scrol
 
 
 void renderCursorScrolled(Editor *editor, float scale, Scroll *scroll) {
-    int x = 10 + (editor->cursor.pos_in_line - scroll->x_offset) * FONT_WIDTH * scale;
-    int y = 10 + (editor->cursor.line - scroll->y_offset) * FONT_HEIGHT * scale;
+    // Offset for line numbers: 5 columns worth of width
+    float line_number_offset = LINE_NUMS_OFFSET;
+    float x = line_number_offset + (editor->cursor.pos_in_line - scroll->x_offset) * FONT_WIDTH * scale;
+    float y = 10 + (editor->cursor.line - scroll->y_offset) * FONT_HEIGHT * scale;
     glColor3f(1, 1, 1);
     glBegin(GL_LINES);
     glVertex2f(x, y);
@@ -292,11 +310,8 @@ void editor_recalc_cursor_pos_and_line(Editor* editor){
 }
 
 
-
-
-
-void renderText(char* text, float x, float y, float scale) {
-    glColor3f(1.0f, 1.0f, 1.0f);
+void renderText(char* text, float x, float y, float scale, Vec4f color) {
+    glColor4f(color.x, color.y, color.z, color.w);
     float orig_x = x;
     for (int i = 0; text[i]; ++i) {
         if (text[i] == '\n') {
@@ -328,15 +343,14 @@ void render_text_box(Editor *editor, char *buffer, char* prompt, float scale){
     glVertex2f(x1, y); // bottom right
     glVertex2f(x, y); // bottom left
     glEnd();
-
     // prompt
     float prompt_x = x + 10;
     float prompt_y = y - 40;
-    renderText(prompt, prompt_x, prompt_y, scale_prompt);
+    renderText(prompt, prompt_x, prompt_y, scale_prompt, WHITE);
 
     // command text
     float cmd_x = prompt_x + prompt_width;
-    renderText(editor->command_text.data, cmd_x, prompt_y, scale_prompt);
+    renderText(editor->command_text.data, cmd_x, prompt_y, scale_prompt, WHITE);
 
     // cursor
     int cx = cmd_x + editor->command_cursor.pos_in_text * FONT_WIDTH * scale_prompt;
@@ -362,7 +376,7 @@ void render_scrollbar(Editor *editor, float scale) {
     int lines_on_screen = h / (FONT_HEIGHT * scale);
 
     // Scrollbar dimensions
-    float bar_width = 12.0f;
+    float bar_width = 12.0f;          // maybe make it wider in the future
     float bar_x = w - bar_width - 2;
     float bar_y = 10.0f;
     float bar_height = h - 20.0f;
@@ -419,8 +433,24 @@ void editor_recalculate_lines(Editor *editor){
     }
 }
 
-void render_line_numbers(void){
-    return;
+void render_line_numbers(Editor *editor, float scale) {
+    int w, h;
+    SDL_GetWindowSize(editor->window, &w, &h);
+
+    int lines_on_screen = h / (FONT_HEIGHT * scale);
+    int first_line = editor->scroll.y_offset;
+    int last_line = first_line + lines_on_screen;
+    if (last_line > (int)editor->lines.size) last_line = editor->lines.size;
+
+    float x = 10.0f;     // TODO: large line numbers go into the text
+    float y = 10.0f;     // have the gap dynamically resize based on how many lines text has
+
+    char buf[16]; // should be plenty of lines
+
+    for (int i = first_line; i < last_line; ++i) {
+        snprintf(buf, sizeof(buf), "%3d", i + 1);
+        renderText(buf, x, y + (i - first_line) * FONT_HEIGHT * scale, scale, vec4f(1.0f, 1.0f, 1.0f, 0.5f));
+    }
 }
 
 
@@ -879,8 +909,9 @@ int main(int argc, char *argv[]) {
                                     glMatrixMode(GL_MODELVIEW);
                                     glLoadIdentity();
 
-                                    renderTextScrolled(editor.text.data, 10.0f, 10.0f, scale, &editor.scroll);
+                                    renderTextScrolled(editor.text.data, (FONT_WIDTH * scale) * 3 + 10.0f, 10.0f, scale, &editor.scroll, WHITE);
                                     render_scrollbar(&editor, scale);
+                                    render_line_numbers(&editor, scale);
 
                                     if(editor.in_command){
                                         char buffer[100];
@@ -984,7 +1015,7 @@ int main(int argc, char *argv[]) {
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
         
-        renderTextScrolled(editor.text.data, 10.0f, 10.0f, scale, &editor.scroll);
+        renderTextScrolled(editor.text.data, LINE_NUMS_OFFSET, 10.0f, scale, &editor.scroll, WHITE);
         render_scrollbar(&editor, scale);
         
         if(editor.in_command){
@@ -995,6 +1026,10 @@ int main(int argc, char *argv[]) {
         }
         
         render_selection(&editor, scale, &editor.scroll);
+
+        
+        render_line_numbers(&editor, scale);
+
 
         SDL_GL_SwapWindow(editor.window);
     }
