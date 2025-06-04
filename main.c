@@ -378,7 +378,7 @@ void render_scrollbar(Editor *editor, float scale) {
         thumb_y += (bar_height - thumb_height) * ((float)editor->scroll.y_offset / max_offset);
 
     // Draw scrollbar background
-    glColor4f(0.18f, 0.18f, 0.18f, 0.8f);
+    glColor4f(0.18f, 0.18f, 0.18f, 0.3f);
     glBegin(GL_QUADS);
     glVertex2f(bar_x, bar_y);
     glVertex2f(bar_x + bar_width, bar_y);
@@ -387,7 +387,7 @@ void render_scrollbar(Editor *editor, float scale) {
     glEnd();
 
     // Draw thumb
-    glColor4f(0.3f, 0.5f, 0.9f, 0.9f);
+    glColor4f(1.0f, 1.0f, 1.0f, 0.5f);
     glBegin(GL_QUADS);
     glVertex2f(bar_x + 2, thumb_y);
     glVertex2f(bar_x + bar_width - 2, thumb_y);
@@ -419,7 +419,9 @@ void editor_recalculate_lines(Editor *editor){
     }
 }
 
-
+void render_line_numbers(void){
+    return;
+}
 
 
 int main(int argc, char *argv[]) {
