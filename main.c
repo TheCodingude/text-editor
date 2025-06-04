@@ -795,6 +795,12 @@ int main(int argc, char *argv[]) {
                             else scale -= 0.5;
                         }
                         break;
+                    case SDLK_a:
+                        if(event.key.keysym.mod & KMOD_CTRL){
+                            editor.selection = true;
+                            editor.selection_start = 0;
+                            editor.selection_end = editor.text.size;
+                        }
                     case SDLK_s:
                         if(event.key.keysym.mod & KMOD_CTRL){
                             save_file(&editor);
