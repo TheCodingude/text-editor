@@ -1,10 +1,10 @@
 - file browser 
-- number lines
  
 
 
 
 DONE:
+- number lines
 - scroll bar 
 - holding control and left/right arrow should move the cursor(and selection) to the next space or \n
 - selection up/down
