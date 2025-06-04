@@ -656,6 +656,7 @@ int main(int argc, char *argv[]) {
                                     editor.cursor.pos_in_text = pos;
                                     // Recalculate line and col
                                     editor_recalc_cursor_pos_and_line(&editor);
+                                    ensure_cursor_visible(&editor, &editor.scroll, scale);
                                 }
                             } else {
                                 // If at start of line, move to end of previous line
@@ -675,11 +676,13 @@ int main(int argc, char *argv[]) {
                                 } else if (editor.text.data[editor.cursor.pos_in_text-1] == '\n') {
                                     editor.cursor.line--;
                                     editor_recalculate_cursor_pos(&editor);
+                                    ensure_cursor_visible(&editor, &editor.scroll, scale);
                                 } else if (editor.cursor.pos_in_text > 0) {
                                     editor.cursor.pos_in_text--;
                                     if (editor.cursor.pos_in_line > 0) {
                                         editor.cursor.pos_in_line--;
                                     }
+                                    ensure_cursor_visible(&editor, &editor.scroll, scale);
                                 }
                             }
                             if (shift) {
@@ -717,14 +720,17 @@ int main(int argc, char *argv[]) {
                                 }
                                 editor.cursor.pos_in_text = pos;
                                 editor_recalc_cursor_pos_and_line(&editor);
+                                ensure_cursor_visible(&editor, &editor.scroll, scale);
                             } else {
                                 if (editor.text.data[editor.cursor.pos_in_text] == '\n') {
                                     editor.cursor.pos_in_line = 0;
                                     editor.cursor.line++;
                                     editor.cursor.pos_in_text++;
+                                    ensure_cursor_visible(&editor, &editor.scroll, scale);
                                 } else if (editor.cursor.pos_in_text < editor.text.size) {
                                     editor.cursor.pos_in_text++;
                                     editor.cursor.pos_in_line++;
+                                    ensure_cursor_visible(&editor, &editor.scroll, scale);
                                 }
                             }
                             if (shift) {
