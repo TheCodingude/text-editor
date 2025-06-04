@@ -31,12 +31,26 @@ typedef struct {
 }Cursor;
 
 typedef struct{
+    size_t start;
+    size_t end;
+}Line;
+
+typedef struct{
+    Line *lines;
+    size_t size;
+    size_t capacity;
+}Lines;
+
+
+typedef struct{
     SDL_Window *window;
     
     Scroll scroll;
     Cursor cursor;
     char* file_path;
+    
     Strung text;
+    Lines lines;
 
     int selection_start;
     int selection_end;
@@ -113,30 +127,20 @@ void editor_move_cursor_to_click(Editor* editor, int x, int y, float scale) {
     int clicked_line = (relative_y / line_height) + editor->scroll.y_offset;
     int clicked_col  = relative_x / char_width;
 
-    int current_line = 0;
-    int pos = 0;
+    // Clamp line to available lines
+    if (clicked_line < 0) clicked_line = 0;
+    if (clicked_line >= (int)editor->lines.size) clicked_line = editor->lines.size - 1;
 
-    // Walk through the text to find the clicked line
-    while (editor->text.data[pos] && current_line < clicked_line) {
-        if (editor->text.data[pos] == '\n') {
-            current_line++;
-        }
-        pos++;
-    }
+    Line line = editor->lines.lines[clicked_line];
+    int line_length = line.end - line.start;
 
-    // Now we're at the start of the target line
-    int line_start = pos;
-    int col = 0;
+    // Clamp col to line length
+    if (clicked_col < 0) clicked_col = 0;
+    if (clicked_col > line_length) clicked_col = line_length;
 
-    // Move forward in the line to match clicked column
-    while (editor->text.data[pos] && editor->text.data[pos] != '\n' && col < clicked_col) {
-        pos++;
-        col++;
-    }
-
-    editor->cursor.pos_in_text = pos;
+    editor->cursor.pos_in_text = line.start + clicked_col;
     editor->cursor.line = clicked_line;
-    editor->cursor.pos_in_line = col;
+    editor->cursor.pos_in_line = clicked_col;
 }
 
 
@@ -392,18 +396,46 @@ void render_scrollbar(Editor *editor, float scale) {
     glEnd();
 }
 
+void editor_recalculate_lines(Editor *editor){
+    if (!editor->lines.lines) {
+        size_t capacity = 64;
+        editor->lines.lines = malloc(capacity * sizeof(Line));
+        editor->lines.capacity = capacity;
+    }
+    editor->lines.size = 0;
 
+    size_t start = 0;
+    for (size_t i = 0; i <= editor->text.size; ++i) {
+        if (editor->text.data[i] == '\n' || editor->text.data[i] == '\0') {
+            if (editor->lines.size >= editor->lines.capacity) {
+                editor->lines.capacity *= 2;
+                editor->lines.lines = realloc(editor->lines.lines, editor->lines.capacity * sizeof(Line));
+            }
+            editor->lines.lines[editor->lines.size].start = start;
+            editor->lines.lines[editor->lines.size].end = i;
+            editor->lines.size++;
+            start = i + 1;
+        }
+    }
+}
 
 
 
 
 int main(int argc, char *argv[]) {
-    Editor editor = {.cursor = {0}, .file_path = "", .text = strung_init(""), .command_text = strung_init(""), .command_cursor = {0}};
+    Editor editor = {.cursor = {0}, 
+                    .file_path = "", 
+                    .text = strung_init(""), 
+                    .command_text = strung_init(""), 
+                    .command_cursor = {0},
+                    .lines = {0}    
+    };
 
     bool line_switch = false;
 
     if (argc > 1){
         open_file(&editor, argv[1]);
+        editor_recalculate_lines(&editor);
     }
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -504,6 +536,7 @@ int main(int argc, char *argv[]) {
                                 editor.cursor.line--;
                                 editor.cursor.pos_in_line = col;
                                 strung_remove_char(&editor.text, editor.cursor.pos_in_text);
+                                editor_recalculate_lines(&editor);
                             } else {
                                 strung_remove_char(&editor.text, editor.cursor.pos_in_text - 1);
                                 editor.cursor.pos_in_text--;
@@ -518,6 +551,7 @@ int main(int argc, char *argv[]) {
                             }
                         } else if (editor.cursor.pos_in_text < editor.text.size) {
                             strung_remove_char(&editor.text, editor.cursor.pos_in_text);
+                            editor_recalculate_lines(&editor); // Can optimize a bit if i recalculate only when deleting newline
                         }
                         break;
                     case SDLK_RETURN:
@@ -525,6 +559,7 @@ int main(int argc, char *argv[]) {
                         editor.cursor.pos_in_text++;
                         editor.cursor.line++;
                         editor.cursor.pos_in_line = 0;
+                        editor_recalculate_lines(&editor);
                         break;
                     case SDLK_TAB:
                         strung_insert_string(&editor.text, "    ", editor.cursor.pos_in_text);
@@ -534,25 +569,14 @@ int main(int argc, char *argv[]) {
                     case SDLK_HOME: 
                         // Move cursor to the start of the current line
                         {
-                            int pos = editor.cursor.pos_in_text;
-                            while (pos > 0 && editor.text.data[pos - 1] != '\n') {
-                                pos--;
-                            }
-                            editor.cursor.pos_in_text = pos;
+                            editor.cursor.pos_in_text = editor.lines.lines[editor.cursor.line].start;
                             editor.cursor.pos_in_line = 0;
                         }
                         break;
                     case SDLK_END:
                         {
-                            int pos = editor.cursor.pos_in_text;
-                            int col = editor.cursor.pos_in_line;
-                            // Move to end of line or end of text
-                            while (editor.text.data[pos] && editor.text.data[pos] != '\n') {
-                                pos++;
-                                col++;
-                            }
-                            editor.cursor.pos_in_text = pos;
-                            editor.cursor.pos_in_line = col;
+                            editor.cursor.pos_in_text = editor.lines.lines[editor.cursor.line].end;
+                            editor.cursor.pos_in_line = editor.lines.lines[editor.cursor.line].end - editor.lines.lines[editor.cursor.line].start;
                         }
                         break;
                     case SDLK_F3:
