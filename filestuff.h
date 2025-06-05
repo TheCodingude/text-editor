@@ -3,6 +3,40 @@
 #include <string.h>
 
 
+
+
+
+void read_entire_dir(File_Browser *fb){
+    
+    if(!fb->current_dir){
+        fb->current_dir = ".";
+    }
+
+    fb->items.count = 0;
+
+    DIR *dir = opendir(fb->current_dir);
+	if (!dir) {
+		/* Could not open directory */
+		fprintf(stderr, "Cannot open current directory\n");
+		exit(1);
+	}
+    
+
+    FB_item item = {0};
+	struct dirent *ent;
+	while ((ent = readdir(dir)) != NULL) {
+        item.name = ent->d_name;
+        item.type = ent->d_type;
+
+        FB_items_append(&fb->items, item);
+    }
+
+	closedir(dir);
+
+
+}
+
+
 void open_file(Editor *editor, char* filepath){
     editor->file_path = filepath;
 
@@ -19,7 +53,10 @@ void open_file(Editor *editor, char* filepath){
         strung_append(&editor->text, buffer);
     }
 
-    // editor->cursor.pos_in_text = editor->text.size;
+    editor->cursor.pos_in_text = 0;
+    editor->cursor.pos_in_line = 0;
+    editor->scroll.x_offset = 0;
+    editor->scroll.y_offset = 0;
     
     fclose(f);
 
