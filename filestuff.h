@@ -57,6 +57,8 @@ void open_file(Editor *editor, char* filepath){
     editor->cursor.pos_in_line = 0;
     editor->scroll.x_offset = 0;
     editor->scroll.y_offset = 0;
+
+    editor_recalculate_lines(editor);
     
     fclose(f);
 

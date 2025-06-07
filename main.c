@@ -17,7 +17,12 @@
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
-
+// selection swap
+#define SEL_SWAP(a, b) do{\
+    int tmp = a;          \
+    a = b;                \
+    b = tmp;              \
+}while(0);
 
 
 #define FONT_8X16
@@ -99,6 +104,8 @@ typedef struct{
     bool in_command;
     Strung command_text;
 }Editor;
+
+void editor_recalculate_lines(Editor *editor);
 
 #include "filestuff.h"
 #include "la.c"
@@ -484,6 +491,9 @@ void render_line_numbers(Editor *editor, float scale) {
     char buf[16]; // should be plenty of lines
 
     for (int i = first_line; i < last_line; ++i) {
+        if (i >= editor->lines.size){
+            break;
+        }
         snprintf(buf, sizeof(buf), "%3d", i + 1);
         if (i == editor->cursor.line){
             renderText(buf, x, y + (i - first_line) * FONT_HEIGHT * scale, scale, vec4f(1.0f, 1.0f, 1.0f, 1.0f));
@@ -933,6 +943,9 @@ int main(int argc, char *argv[]) {
                         case SDLK_c:
                             if(event.key.keysym.mod & KMOD_CTRL){
                                 if(editor.selection){
+                                    if(editor.selection_end < editor.selection_start){
+                                        SEL_SWAP(editor.selection_start, editor.selection_end)
+                                    }
                                     char* selected = strung_substr(&editor.text, editor.selection_start, editor.selection_end - editor.selection_start);
                                     if(SDL_SetClipboardText(selected) < 0){
                                         fprintf(stderr, "%s could not be copied to clipboard\n", selected);
@@ -947,6 +960,7 @@ int main(int argc, char *argv[]) {
                                 editor.cursor.pos_in_line += strlen(text);
                                 editor.cursor.pos_in_text += strlen(text);
                                 SDL_free(text);
+                                editor_recalculate_lines(&editor);
                             }
                             break;
                         case SDLK_PAGEUP:
