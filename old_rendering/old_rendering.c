@@ -290,6 +290,34 @@ void draw_char(char c, float x, float y, float scale, Vec4f color) {
     }
 }
 
+void renderTextScrolled(char* text, float x, float y, float scale, Scroll *scroll, Vec4f color) {
+    glColor4f(color.x, color.y, color.z, color.w);
+    int w, h;
+    SDL_GetWindowSize(SDL_GL_GetCurrentWindow(), &w, &h);
+    int lines_on_screen = h / (FONT_HEIGHT * scale);
+    int cols_on_screen = w / (FONT_WIDTH * scale);
+
+    int line = 0, col = 0;
+    float orig_x = x;
+    float draw_y = y;
+    float draw_x = x;
+    for (int i = 0; text[i]; ++i) {
+        if (line >= scroll->y_offset && line < scroll->y_offset + lines_on_screen) {
+            if (col >= scroll->x_offset && col < scroll->x_offset + cols_on_screen) {
+                if (text[i] != '\n') {
+                    draw_char(text[i], draw_x + (col - scroll->x_offset) * FONT_WIDTH * scale, draw_y + (line - scroll->y_offset) * FONT_HEIGHT * scale, scale);
+                }
+            }
+        }
+        if (text[i] == '\n') {
+            line++;
+            col = 0;
+        } else {
+            col++;
+        }
+        if (line - scroll->y_offset > lines_on_screen) break; // safety
+    }
+}
 void clamp_scroll(Editor *editor, Scroll *scroll, float scale) {
     int w, h;
     SDL_GetWindowSize(editor->window, &w, &h);
@@ -332,6 +360,7 @@ void ensure_cursor_visible(Editor *editor, Scroll *scroll, float scale) {
     clamp_scroll(editor, scroll, scale);
 }
 
+<<<<<<< HEAD:old_rendering/old_rendering.c
 void renderTextScrolled(char* text, float x, float y, float scale, Scroll *scroll, Vec4f color) {
     glColor4f(color.x, color.y, color.z, color.w);
     int w, h;
@@ -371,6 +400,8 @@ void renderTextScrolled(char* text, float x, float y, float scale, Scroll *scrol
         if (line - scroll->y_offset > lines_on_screen) break; // safety
     }
 }
+=======
+>>>>>>> afe05f9 (updated things):main.c
 
 
 void renderCursorScrolled(Editor *editor, float scale, Scroll *scroll) {
@@ -1130,11 +1161,10 @@ int main(int argc, char *argv[]) {
                             editor.cursor.pos_in_text += 4;
                             break;
                         case SDLK_HOME: 
-                            // Move cursor to the start of the current line
-                            {
-                                editor.cursor.pos_in_text = editor.lines.lines[editor.cursor.line].start;
-                                editor.cursor.pos_in_line = 0;
-                            }
+
+                            editor.cursor.pos_in_text = editor.lines.lines[editor.cursor.line].start;
+                            editor.cursor.pos_in_line = 0;
+                            
                             break;
                         case SDLK_END:
                             {
