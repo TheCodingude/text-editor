@@ -3,7 +3,24 @@
 #include <string.h>
 
 
+void organize_directory(File_Browser *fb){
+    if (fb->items.count < 2) return;
 
+    for (size_t i = 0; i < fb->items.count - 1; ++i) {
+        for (size_t j = i + 1; j < fb->items.count; ++j) {
+            // Put directories (folders) on top
+            int i_is_dir = (fb->items.items[i].type == DT_DIR);
+            int j_is_dir = (fb->items.items[j].type == DT_DIR);
+
+            if ((!i_is_dir && j_is_dir) ||
+                ((i_is_dir == j_is_dir) && strcmp(fb->items.items[i].name, fb->items.items[j].name) > 0)) {
+                FB_item temp = fb->items.items[i];
+                fb->items.items[i] = fb->items.items[j];
+                fb->items.items[j] = temp;
+            }
+        }
+    }
+}
 
 
 void read_entire_dir(File_Browser *fb){
@@ -31,6 +48,7 @@ void read_entire_dir(File_Browser *fb){
         FB_items_append(&fb->items, item);
     }
 
+    organize_directory(fb);
 	closedir(dir);
 
 
