@@ -595,9 +595,14 @@ int main(int argc, char *argv[]) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 running = false;
-            }  else if (event.type == SDL_DROPFILE){ // IT ONLY WORKS WHEN I PUT IT HERE
-                open_file(&editor, event.drop.file); // IT WORKS IM NOT FUCKING TOUCHING IT
+            }else if (event.type == SDL_DROPFILE){ 
+                if(fb.file_browser){
+                    move_file_to_fb(&fb, event.drop.file);
+                }else{
+                    open_file(&editor, event.drop.file); 
+                }
                 SDL_free(event.drop.file);           // TODO: IF FILE DROPPED WHILE IN FILE BROWSER, MOVE FILE TO THAT DIRECTORY INSTEAD OF OPENING IT
+                                                    
             }
             else if (event.type == SDL_TEXTINPUT) {
                 if(fb.file_browser){ 

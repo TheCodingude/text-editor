@@ -55,6 +55,55 @@ void read_entire_dir(File_Browser *fb){
 
 }
 
+void move_file_to_fb(File_Browser *fb, char* filepath){
+    Strung contents = strung_init("");
+
+    char buffer[1024];
+
+    FILE *f = fopen(filepath, "r");
+    if(f == NULL){
+        fprintf(stderr, "Failed to move %s\n", filepath); // TODO: have popup
+        strung_free(&contents);
+        return;
+    }
+
+    while(fgets(buffer, sizeof(buffer), f)){
+        strung_append(&contents, buffer);
+    }
+
+    // get filepath
+    const char *filename = strrchr(filepath, '/');
+    if (filename) {
+        filename++; // skip the '/'
+    } else {
+        filename = filepath;
+    }
+
+    Strung new_path = strung_init(fb->relative_path.data);
+    strung_append_char(&new_path, '/');
+    strung_append(&new_path, filename);
+
+    FILE *cf = fopen(new_path.data, "w");
+    if (cf == NULL) {
+        fprintf(stderr, "Failed to create %s\n", new_path.data);
+        strung_free(&contents);
+        strung_free(&new_path);
+        fclose(f);
+        return;
+    }
+
+    fprintf(cf, "%s", contents.data);
+
+    strung_free(&contents);
+    strung_free(&new_path);
+
+    fclose(f);
+    fclose(cf);
+
+    read_entire_dir(fb);
+
+}
+
 
 void open_file(Editor *editor, char* filepath){
     editor->file_path = filepath;
