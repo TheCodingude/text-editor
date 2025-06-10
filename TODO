@@ -1,13 +1,14 @@
 - have more info of the file in fb (size, edit time, etc)
-- open folders in file browser
 - dragging files into folder when in fb 
  
+
 Maybe:
 - render text as a truetype font instead of bitmap array - i looked into it but nothing i did worked so ill come back to it
 
 
 
 DONE:
+- open folders in file browser
 - organize files in file broweser
 - number lines
 - scroll bar 

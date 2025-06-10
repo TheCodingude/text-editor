@@ -25,13 +25,14 @@ void organize_directory(File_Browser *fb){
 
 void read_entire_dir(File_Browser *fb){
     
-    if(!fb->current_dir){
-        fb->current_dir = ".";
+    if(!(fb->relative_path.size > 0)){
+        fprintf(stderr, "UNREACHABLE: read_entire_dir\n");
+        return;
     }
 
     fb->items.count = 0;
 
-    DIR *dir = opendir(fb->current_dir);
+    DIR *dir = opendir(fb->relative_path.data);
 	if (!dir) {
 		/* Could not open directory */
 		fprintf(stderr, "Cannot open current directory\n");

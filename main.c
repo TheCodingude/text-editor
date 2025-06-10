@@ -57,7 +57,8 @@ static void FB_items_append(FB_items *list, FB_item item) {
 typedef struct{
     bool file_browser;
     size_t cursor;
-    char* current_dir;
+    
+    Strung relative_path;
 
     FB_items items;
 }File_Browser;
@@ -541,7 +542,10 @@ int main(int argc, char *argv[]) {
                     .lines = {0}    
     };
 
-    File_Browser fb = {0};
+    char buffer[PATH_MAX];
+    if(!(realpath(".", buffer))) fprintf(stderr, "Failed, A lot (at opening init directory)\n");
+    File_Browser fb = {.relative_path = strung_init(buffer)};
+    strung_append_char(&fb.relative_path, '/');
 
 
     bool line_switch = false;
@@ -635,12 +639,61 @@ int main(int argc, char *argv[]) {
                         if(fb.cursor < fb.items.count - 1) fb.cursor++;
                         break;
                     case SDLK_RETURN:
-                        if(fb.items.items[fb.cursor].type == DT_REG){
-                            open_file(&editor, fb.items.items[fb.cursor].name);
-                            ensure_cursor_visible(&editor, &editor.scroll, scale);
-                            fb.file_browser = false;
-                        } else{
-                            fprintf(stderr, "we currently do not allow going into other folders\n");
+                        char *selected = fb.items.items[fb.cursor].name;
+                        if (fb.items.items[fb.cursor].type == DT_REG) {
+                            // Build full path
+                            char full_path[PATH_MAX];
+                            snprintf(full_path, sizeof(full_path), "%s%s", fb.relative_path.data, selected);
+                            char resolved[PATH_MAX];
+                            if (!realpath(full_path, resolved)) {
+                                fprintf(stderr, "Failed to get full file path of %s\n", selected);
+                            } else {
+                                open_file(&editor, resolved);
+                                ensure_cursor_visible(&editor, &editor.scroll, scale);
+                                fb.file_browser = false;
+                            }
+                        } else if (fb.items.items[fb.cursor].type == DT_DIR) {
+                            char *selected = fb.items.items[fb.cursor].name;
+                            if (strcmp(selected, ".") == 0) {
+                                // Stay in current directory, do nothing
+                            } else if (strcmp(selected, "..") == 0) {
+                                // Go up one directory
+                                size_t len = strlen(fb.relative_path.data);
+                                if (len > 1) {
+                                    // Remove trailing slash if present
+                                    if (fb.relative_path.data[len - 1] == '/')
+                                        fb.relative_path.data[--len] = '\0';
+                                    // Find previous slash
+                                    char *slash = strrchr(fb.relative_path.data, '/');
+                                    if (slash && slash != fb.relative_path.data) {
+                                        *slash = '\0';
+                                        len = slash - fb.relative_path.data;
+                                    } else {
+                                        // Already at root, stay
+                                        fb.relative_path.data[0] = '/';
+                                        fb.relative_path.data[1] = '\0';
+                                        len = 1;
+                                    }
+                                }
+                                // Ensure trailing slash except for root
+                                if (strcmp(fb.relative_path.data, "/") != 0) {
+                                    if (fb.relative_path.data[len - 1] != '/') {
+                                        fb.relative_path.data[len] = '/';
+                                        fb.relative_path.data[len + 1] = '\0';
+                                    }
+                                }
+                                // Truncate any extra data after the new end
+                                fb.relative_path.size = strlen(fb.relative_path.data);
+                            } else {
+                                // Go into selected directory
+                                size_t len = strlen(fb.relative_path.data);
+                                if (len > 0 && fb.relative_path.data[len - 1] != '/')
+                                    strung_append_char(&fb.relative_path, '/');
+                                strung_append(&fb.relative_path, selected);
+                                strung_append_char(&fb.relative_path, '/');
+                            }
+                            read_entire_dir(&fb);
+                            fb.cursor = 0;
                         }
                     default:
                         break;
