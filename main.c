@@ -527,10 +527,12 @@ void render_file_browser(Editor *editor, File_Browser *fb) {
     float scale = 1.5f;
 
     float x = 50;
-    float y = 20;
+    float y = 20 + (FONT_HEIGHT * scale);
 
     char name_buf[PATH_MAX];
     char info_buf[128];
+
+    renderText(fb->relative_path.data, 10, 10, scale, WHITE);
 
     // Calculate max width for size column
     int max_size_width = 0;
