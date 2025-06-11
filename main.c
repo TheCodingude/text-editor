@@ -63,6 +63,7 @@ static void FB_items_append(FB_items *list, FB_item item) {
 typedef struct{
     bool file_browser;
     size_t cursor;
+    float scale;
     
     Strung relative_path;
 
@@ -524,15 +525,14 @@ void format_size(long bytes, char *out, size_t out_size) {
 void render_file_browser(Editor *editor, File_Browser *fb) {
     int w, h;
     SDL_GetWindowSize(editor->window, &w, &h);
-    float scale = 1.5f;
 
     float x = 50;
-    float y = 20 + (FONT_HEIGHT * scale);
+    float y = 20 + (FONT_HEIGHT * fb->scale);
 
     char name_buf[PATH_MAX];
     char info_buf[128];
 
-    renderText(fb->relative_path.data, 10, 10, scale, WHITE);
+    renderText(fb->relative_path.data, 10, 10, fb->scale, WHITE); // this is one place where a freetype font would 100% look better
 
     // Calculate max width for size column
     int max_size_width = 0;
@@ -575,8 +575,8 @@ void render_file_browser(Editor *editor, File_Browser *fb) {
 
         float name_x = x + 400;
         if (fb->cursor == i) {
-            float bx = name_x + strlen(item->name) * FONT_WIDTH * scale;
-            float by = y + FONT_HEIGHT * scale;
+            float bx = name_x + strlen(item->name) * FONT_WIDTH * fb->scale;
+            float by = y + FONT_HEIGHT * fb->scale;
             glColor4f(0.2f, 0.5f, 1.0f, 0.3f); // semi-transparent blue
             glBegin(GL_QUADS);
                 glVertex2f(x, y);
@@ -587,12 +587,12 @@ void render_file_browser(Editor *editor, File_Browser *fb) {
         }
 
         // Draw info (size, time)
-        renderText(info_buf, x, y, scale, WHITE);
+        renderText(info_buf, x, y, fb->scale, WHITE);
 
         // Draw name (after info)
-        renderText(item->name, name_x, y, scale, WHITE);
+        renderText(item->name, name_x, y, fb->scale, WHITE);
 
-        y += FONT_HEIGHT * scale + 10;
+        y += FONT_HEIGHT * fb->scale + 10;
     }
 }
 
@@ -607,7 +607,7 @@ int main(int argc, char *argv[]) {
 
     char buffer[PATH_MAX];
     if(!(realpath(".", buffer))) fprintf(stderr, "Failed, A lot (at opening init directory)\n");
-    File_Browser fb = {.relative_path = strung_init(buffer)};
+    File_Browser fb = {.relative_path = strung_init(buffer), .scale = 1.5f};
     strung_append_char(&fb.relative_path, '/');
 
 
@@ -649,8 +649,6 @@ int main(int argc, char *argv[]) {
     SDL_EventState(SDL_DROPFILE, SDL_ENABLE); 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    int fb_cursor;
 
     bool running = true;
     while (running) {
@@ -763,6 +761,11 @@ int main(int argc, char *argv[]) {
                             read_entire_dir(&fb);
                             fb.cursor = 0;
                         }
+                    case SDLK_MINUS:
+                        if (event.key.keysym.mod & KMOD_CTRL) fb.scale -= 0.5;
+                        break;
+                    case SDLK_EQUALS:
+                        if (event.key.keysym.mod & KMOD_CTRL) fb.scale += 0.5;
                     default:
                         break;
                     }
