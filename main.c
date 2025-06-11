@@ -4,6 +4,9 @@
 #include <string.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <sys/stat.h>
+#include <time.h>
+
 
 #ifndef _WIN32
 #include <dirent.h>
@@ -24,6 +27,8 @@
     b = tmp;              \
 }while(0);
 
+ 
+
 
 #define FONT_8X16
 #include "font.h"
@@ -31,6 +36,7 @@
 typedef struct{
     char* name;
     int type; // Just using d_type
+    struct stat data;
 }FB_item;
 
 typedef struct{
@@ -504,21 +510,71 @@ void render_line_numbers(Editor *editor, float scale) {
     }
 }
 
-
-void render_file_browser(Editor *editor, File_Browser *fb){
-
+void format_size(long bytes, char *out, size_t out_size) {
+    if (bytes < 1024) {
+        snprintf(out, out_size, "%ld", bytes);
+    } else if (bytes < 1024 * 1024) {
+        snprintf(out, out_size, "%.1fK", bytes / 1024.0);
+    } else if (bytes < 1024L * 1024L * 1024L) {
+        snprintf(out, out_size, "%.1fM", bytes / (1024.0 * 1024.0));
+    } else {
+        snprintf(out, out_size, "%.1fG", bytes / (1024.0 * 1024.0 * 1024.0));
+    }
+}
+void render_file_browser(Editor *editor, File_Browser *fb) {
     int w, h;
     SDL_GetWindowSize(editor->window, &w, &h);
     float scale = 1.5f;
-    
-    float x = w / 2 - 30;
+
+    float x = 50;
     float y = 20;
 
-    for(int i = 0; i < fb->items.count; i++){
-        if (fb->cursor == i){
-            float bx = x + ((FONT_WIDTH * scale) * strlen(fb->items.items[i].name)); 
-            float by = y + FONT_HEIGHT * scale;
+    char name_buf[PATH_MAX];
+    char info_buf[128];
 
+    // Calculate max width for size column
+    int max_size_width = 0;
+    for (int i = 0; i < fb->items.count; i++) {
+        FB_item *item = &fb->items.items[i];
+        char size_str[32];
+        if (item->type == DT_DIR) {
+            strcpy(size_str, "DIR");
+        } else {
+            format_size((long)item->data.st_size, size_str, sizeof(size_str));
+        }
+        int width = strlen(size_str);
+        if (width > max_size_width) max_size_width = width;
+    }
+
+    for (int i = 0; i < fb->items.count; i++) {
+        FB_item *item = &fb->items.items[i];
+
+        char size_str[32];
+        if (item->type == DT_DIR) {
+            strcpy(size_str, "DIR");
+        } else {
+            format_size((long)item->data.st_size, size_str, sizeof(size_str));
+        }
+
+        // Format last modified time
+        struct tm *mtm = localtime(&item->data.st_mtime);
+        char time_str[32];
+        if (mtm) {
+            strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M", mtm);
+        } else {
+            strcpy(time_str, "----");
+        }
+
+
+        char size_padded[40];
+        snprintf(size_padded, sizeof(size_padded), "%-*s", max_size_width, size_str);
+
+        snprintf(info_buf, sizeof(info_buf), "%s  %s", size_padded, time_str);
+
+        float name_x = x + 400;
+        if (fb->cursor == i) {
+            float bx = name_x + strlen(item->name) * FONT_WIDTH * scale;
+            float by = y + FONT_HEIGHT * scale;
             glColor4f(0.2f, 0.5f, 1.0f, 0.3f); // semi-transparent blue
             glBegin(GL_QUADS);
                 glVertex2f(x, y);
@@ -527,10 +583,15 @@ void render_file_browser(Editor *editor, File_Browser *fb){
                 glVertex2f(x, by);
             glEnd();
         }
-        renderText(fb->items.items[i].name, x, y, scale, WHITE);
+
+        // Draw info (size, time)
+        renderText(info_buf, x, y, scale, WHITE);
+
+        // Draw name (after info)
+        renderText(item->name, name_x, y, scale, WHITE);
+
         y += FONT_HEIGHT * scale + 10;
     }
-
 }
 
 int main(int argc, char *argv[]) {

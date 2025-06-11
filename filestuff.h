@@ -42,11 +42,17 @@ void read_entire_dir(File_Browser *fb){
 
     FB_item item = {0};
 	struct dirent *ent;
+    struct stat buf;
 	while ((ent = readdir(dir)) != NULL) {
         item.name = ent->d_name;
         item.type = ent->d_type;
+        
+        stat(ent->d_name, &buf);
 
+        item.data = buf;
+        
         FB_items_append(&fb->items, item);
+        
     }
 
     organize_directory(fb);
