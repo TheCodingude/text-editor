@@ -7,7 +7,6 @@
 #include <sys/stat.h>
 #include <time.h>
 
-
 #ifndef _WIN32
 #include <dirent.h>
 #else
@@ -65,6 +64,9 @@ typedef struct{
     size_t cursor;
     float scale;
     
+    Strung new_file_path;
+    bool new_file;
+
     Strung relative_path;
 
     FB_items items;
@@ -548,6 +550,7 @@ void render_file_browser(Editor *editor, File_Browser *fb) {
         if (width > max_size_width) max_size_width = width;
     }
 
+    float name_x = x + 400;
     for (int i = 0; i < fb->items.count; i++) {
         FB_item *item = &fb->items.items[i];
 
@@ -573,7 +576,6 @@ void render_file_browser(Editor *editor, File_Browser *fb) {
 
         snprintf(info_buf, sizeof(info_buf), "%s  %s", size_padded, time_str);
 
-        float name_x = x + 400;
         if (fb->cursor == i) {
             float bx = name_x + strlen(item->name) * FONT_WIDTH * fb->scale;
             float by = y + FONT_HEIGHT * fb->scale;
@@ -593,6 +595,18 @@ void render_file_browser(Editor *editor, File_Browser *fb) {
         renderText(item->name, name_x, y, fb->scale, WHITE);
 
         y += FONT_HEIGHT * fb->scale + 10;
+
+        
+    }
+    if(fb->new_file){
+        glColor4f(0.240, 0.240, 0.240, 1.0f);
+        glBegin(GL_QUADS);
+            glVertex2f(name_x, y);
+            glVertex2f(name_x + (FONT_WIDTH * fb->scale) * 10, y);
+            glVertex2f(name_x + (FONT_WIDTH * fb->scale) * 10, y + FONT_HEIGHT * fb->scale);
+            glVertex2f(name_x, y + FONT_HEIGHT * fb->scale);
+        glEnd();
+        renderText(fb->new_file_path.data, name_x + 5, y + 3, fb->scale - 0.1, WHITE);
     }
 }
 
@@ -607,7 +621,7 @@ int main(int argc, char *argv[]) {
 
     char buffer[PATH_MAX];
     if(!(realpath(".", buffer))) fprintf(stderr, "Failed, A lot (at opening init directory)\n");
-    File_Browser fb = {.relative_path = strung_init(buffer), .scale = 1.5f};
+    File_Browser fb = {.relative_path = strung_init(buffer), .scale = 1.5f, .new_file_path = strung_init("")};
     strung_append_char(&fb.relative_path, '/');
 
 
@@ -658,16 +672,17 @@ int main(int argc, char *argv[]) {
                 running = false;
             }else if (event.type == SDL_DROPFILE){ 
                 if(fb.file_browser){
-                    move_file_to_fb(&fb, event.drop.file);
+                    move_file_to_fb(&fb, event.drop.file); // make this work with folders
                 }else{
                     open_file(&editor, event.drop.file); 
                 }
-                SDL_free(event.drop.file);           // TODO: IF FILE DROPPED WHILE IN FILE BROWSER, MOVE FILE TO THAT DIRECTORY INSTEAD OF OPENING IT
-                                                    
+                SDL_free(event.drop.file);                                                               
             }
             else if (event.type == SDL_TEXTINPUT) {
                 if(fb.file_browser){ 
-                    // TODO: search for files
+                    if(fb.new_file){
+                        strung_append(&fb.new_file_path, event.text.text);
+                    }
                 } else {
                     if(editor.selection){
                         strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
@@ -705,67 +720,78 @@ int main(int argc, char *argv[]) {
                         if(fb.cursor < fb.items.count - 1) fb.cursor++;
                         break;
                     case SDLK_RETURN:
-                        char *selected = fb.items.items[fb.cursor].name;
-                        if (fb.items.items[fb.cursor].type == DT_REG) {
-                            // Build full path
-                            char full_path[PATH_MAX];
-                            snprintf(full_path, sizeof(full_path), "%s%s", fb.relative_path.data, selected);
-                            char resolved[PATH_MAX];
-                            if (!realpath(full_path, resolved)) {
-                                fprintf(stderr, "Failed to get full file path of %s\n", selected);
-                            } else {
-                                open_file(&editor, resolved);
-                                ensure_cursor_visible(&editor, &editor.scroll, scale);
-                                fb.file_browser = false;
-                            }
-                        } else if (fb.items.items[fb.cursor].type == DT_DIR) {
+                        if(!fb.new_file){
                             char *selected = fb.items.items[fb.cursor].name;
-                            if (strcmp(selected, ".") == 0) {
-                                // Stay in current directory, do nothing
-                            } else if (strcmp(selected, "..") == 0) {
-                                // Go up one directory
-                                size_t len = strlen(fb.relative_path.data);
-                                if (len > 1) {
-                                    // Remove trailing slash if present
-                                    if (fb.relative_path.data[len - 1] == '/')
-                                        fb.relative_path.data[--len] = '\0';
-                                    // Find previous slash
-                                    char *slash = strrchr(fb.relative_path.data, '/');
-                                    if (slash && slash != fb.relative_path.data) {
-                                        *slash = '\0';
-                                        len = slash - fb.relative_path.data;
-                                    } else {
-                                        // Already at root, stay
-                                        fb.relative_path.data[0] = '/';
-                                        fb.relative_path.data[1] = '\0';
-                                        len = 1;
-                                    }
+                            if (fb.items.items[fb.cursor].type == DT_REG) {
+                                // Build full path
+                                char full_path[PATH_MAX];
+                                snprintf(full_path, sizeof(full_path), "%s%s", fb.relative_path.data, selected);
+                                char resolved[PATH_MAX];
+                                if (!realpath(full_path, resolved)) {
+                                    fprintf(stderr, "Failed to get full file path of %s\n", selected);
+                                } else {
+                                    open_file(&editor, resolved);
+                                    ensure_cursor_visible(&editor, &editor.scroll, scale);
+                                    fb.file_browser = false;
                                 }
-                                // Ensure trailing slash except for root
-                                if (strcmp(fb.relative_path.data, "/") != 0) {
-                                    if (fb.relative_path.data[len - 1] != '/') {
-                                        fb.relative_path.data[len] = '/';
-                                        fb.relative_path.data[len + 1] = '\0';
+                            } else if (fb.items.items[fb.cursor].type == DT_DIR) {
+                                char *selected = fb.items.items[fb.cursor].name;
+                                if (strcmp(selected, ".") == 0) {
+                                    // Stay in current directory, do nothing
+                                } else if (strcmp(selected, "..") == 0) {
+                                    // Go up one directory
+                                    size_t len = strlen(fb.relative_path.data);
+                                    if (len > 1) {
+                                        // Remove trailing slash if present
+                                        if (fb.relative_path.data[len - 1] == '/')
+                                            fb.relative_path.data[--len] = '\0';
+                                        // Find previous slash
+                                        char *slash = strrchr(fb.relative_path.data, '/');
+                                        if (slash && slash != fb.relative_path.data) {
+                                            *slash = '\0';
+                                            len = slash - fb.relative_path.data;
+                                        } else {
+                                            // Already at root, stay
+                                            fb.relative_path.data[0] = '/';
+                                            fb.relative_path.data[1] = '\0';
+                                            len = 1;
+                                        }
                                     }
-                                }
-                                // Truncate any extra data after the new end
-                                fb.relative_path.size = strlen(fb.relative_path.data);
-                            } else {
-                                // Go into selected directory
-                                size_t len = strlen(fb.relative_path.data);
-                                if (len > 0 && fb.relative_path.data[len - 1] != '/')
+                                    // Ensure trailing slash except for root
+                                    if (strcmp(fb.relative_path.data, "/") != 0) {
+                                        if (fb.relative_path.data[len - 1] != '/') {
+                                            fb.relative_path.data[len] = '/';
+                                            fb.relative_path.data[len + 1] = '\0';
+                                        }
+                                    }
+                                    // Truncate any extra data after the new end
+                                    fb.relative_path.size = strlen(fb.relative_path.data);
+                                } else {
+                                    // Go into selected directory
+                                    size_t len = strlen(fb.relative_path.data);
+                                    if (len > 0 && fb.relative_path.data[len - 1] != '/')
+                                        strung_append_char(&fb.relative_path, '/');
+                                    strung_append(&fb.relative_path, selected);
                                     strung_append_char(&fb.relative_path, '/');
-                                strung_append(&fb.relative_path, selected);
-                                strung_append_char(&fb.relative_path, '/');
+                                }
+                                read_entire_dir(&fb);
+                                fb.cursor = 0;
                             }
+                        } else{
+                            create_new_file(fb.new_file_path.data);
                             read_entire_dir(&fb);
-                            fb.cursor = 0;
+                            fb.new_file = false;
                         }
                     case SDLK_MINUS:
                         if (event.key.keysym.mod & KMOD_CTRL) fb.scale -= 0.5;
                         break;
                     case SDLK_EQUALS:
                         if (event.key.keysym.mod & KMOD_CTRL) fb.scale += 0.5;
+                        break;
+                    case SDLK_n:
+                        strung_reset(&fb.new_file_path);
+                        fb.new_file = true;
+                        break;
                     default:
                         break;
                     }

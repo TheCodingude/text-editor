@@ -1,4 +1,3 @@
-- have more info of the file in fb (size, edit time, etc)
  
 
 Maybe:
@@ -7,6 +6,8 @@ Maybe:
 
 
 DONE:
+- Control-n in fb creates a new file
+- have more info of the file in fb (size, edit time, etc)
 - dragging files into folder when in fb 
 - open folders in file browser
 - organize files in file broweser

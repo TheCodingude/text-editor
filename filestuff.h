@@ -61,6 +61,12 @@ void read_entire_dir(File_Browser *fb){
 
 }
 
+void create_new_file(const char* fp){
+    FILE* f = fopen(fp,"w");
+
+    fclose(f); // this might be it?
+}
+
 void move_file_to_fb(File_Browser *fb, char* filepath){
     Strung contents = strung_init("");
 
