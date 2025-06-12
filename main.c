@@ -730,10 +730,10 @@ int main(int argc, char *argv[]) {
                         running = false;
                         break;
                     case SDLK_UP:
-                        if (fb.cursor > 0) fb.cursor--;
+                        if (fb.cursor > 0 && !fb.renaming) fb.cursor--;
                         break;
                     case SDLK_DOWN:
-                        if(fb.cursor < fb.items.count - 1) fb.cursor++;
+                        if(fb.cursor < fb.items.count - 1 && !fb.renaming) fb.cursor++;
                         break;
                     case SDLK_BACKSPACE:
                         if(fb.new_file || fb.renaming) strung_remove_char(&fb.new_file_path, fb.new_file_path.size - 1);
