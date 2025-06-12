@@ -39,6 +39,23 @@ Strung strung_init(char* string) {
     return str;
 }
 
+
+Strung strung_init_custom(char* string, int alloc){ // custom amount of alloc
+    Strung str = {0};
+    int len = strlen(string);
+
+    str.data = (char*)malloc(alloc * sizeof(char));
+    str.size = len;
+    str.capacity = alloc;
+    if (str.data) {
+        memcpy(str.data, string, len);
+        str.data[len] = '\0'; // Null-terminate the string
+    }
+    return str;
+}
+
+
+
 void strung_append(Strung* str, const char* text) {
     int text_len = strlen(text);
     if (str->size + text_len + 1 > str->capacity) {
