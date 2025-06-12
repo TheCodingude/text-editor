@@ -66,8 +66,9 @@ typedef struct{
     float scale;
     
     Strung new_file_path;
-    bool new_file;
+    bool new_file;          // surely there is a better way to do this right?
     bool new_dir;
+    bool renaming;
 
     Strung relative_path;
 
@@ -578,7 +579,7 @@ void render_file_browser(Editor *editor, File_Browser *fb) {
 
         snprintf(info_buf, sizeof(info_buf), "%s  %s", size_padded, time_str);
 
-        if (fb->cursor == i) {
+        if (fb->cursor == i && !fb->renaming) {
             float bx = name_x + strlen(item->name) * FONT_WIDTH * fb->scale;
             float by = y + FONT_HEIGHT * fb->scale;
             glColor4f(0.2f, 0.5f, 1.0f, 0.3f); // semi-transparent blue
@@ -588,13 +589,26 @@ void render_file_browser(Editor *editor, File_Browser *fb) {
                 glVertex2f(bx, by);
                 glVertex2f(x, by);
             glEnd();
-        }
 
+        }
+        
         // Draw info (size, time)
         renderText(info_buf, x, y, fb->scale, WHITE);
-
+        
         // Draw name (after info)
-        renderText(item->name, name_x, y, fb->scale, WHITE);
+        if(fb->renaming && fb->cursor == i){
+            glColor4f(0.240, 0.240, 0.240, 1.0f);
+            glBegin(GL_QUADS);
+                glVertex2f(name_x - 5, y - 5);
+                glVertex2f(name_x + (FONT_WIDTH * fb->scale) * 10, y - 5);
+                glVertex2f(name_x + (FONT_WIDTH * fb->scale) * 10, y + FONT_HEIGHT * fb->scale);
+                glVertex2f(name_x - 5, y + FONT_HEIGHT * fb->scale);
+            glEnd();
+            renderText(fb->new_file_path.data, name_x, y, fb->scale, WHITE);
+        }else{
+            renderText(item->name, name_x, y, fb->scale, WHITE);
+        }
+        
 
         y += FONT_HEIGHT * fb->scale + 10;
 
@@ -682,9 +696,9 @@ int main(int argc, char *argv[]) {
             }
             else if (event.type == SDL_TEXTINPUT) {
                 if(fb.file_browser){ 
-                    if(fb.new_file){
+                    if(fb.new_file || fb.renaming){
                         strung_append(&fb.new_file_path, event.text.text);
-                    }
+                    } 
                 } else {
                     if(editor.selection){
                         strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
@@ -721,8 +735,36 @@ int main(int argc, char *argv[]) {
                     case SDLK_DOWN:
                         if(fb.cursor < fb.items.count - 1) fb.cursor++;
                         break;
+                    case SDLK_BACKSPACE:
+                        if(fb.new_file || fb.renaming) strung_remove_char(&fb.new_file_path, fb.new_file_path.size - 1);
+                        break;
                     case SDLK_RETURN:
-                        if(!fb.new_file){
+                        if(fb.new_file){
+                            Strung final = strung_init("");
+                            strung_append(&final, fb.relative_path.data);
+                            strung_append(&final, fb.new_file_path.data);
+                            if(fb.new_dir){
+                                mkdir(final.data, S_IRWXU);
+                            }else{
+                                create_new_file(final.data);
+                            }
+                            read_entire_dir(&fb);
+                            fb.new_file = false;
+                            fb.new_dir = false;
+                        } else if(fb.renaming){
+                            Strung new_name_path = strung_init("");
+                            strung_append(&new_name_path, fb.relative_path.data);
+                            strung_append(&new_name_path, fb.new_file_path.data);
+
+                            Strung old_name_path = strung_init("");
+                            strung_append(&old_name_path, fb.relative_path.data);
+                            strung_append(&old_name_path, fb.items.items[fb.cursor].name);
+
+                            if(rename(old_name_path.data, new_name_path.data) != 0) fprintf(stderr, "Failed to rename\n");
+                            read_entire_dir(&fb);
+                            fb.renaming = false;
+                        }else{
+                            
                             char *selected = fb.items.items[fb.cursor].name;
                             if (fb.items.items[fb.cursor].type == DT_REG) {
                                 // Build full path
@@ -779,18 +821,6 @@ int main(int argc, char *argv[]) {
                                 read_entire_dir(&fb);
                                 fb.cursor = 0;
                             }
-                        } else{
-                            Strung final = strung_init("");
-                            strung_append(&final, fb.relative_path.data);
-                            strung_append(&final, fb.new_file_path.data);
-                            if(fb.new_dir){
-                                mkdir(final.data, S_IRWXU);
-                            }else{
-                                create_new_file(final.data);
-                            }
-                            read_entire_dir(&fb);
-                            fb.new_file = false;
-                            fb.new_dir = false;
                         }
                         break;
                     case SDLK_DELETE:
@@ -825,6 +855,12 @@ int main(int argc, char *argv[]) {
                             fb.new_file = true;
                         }
                         break;
+                    case SDLK_r:
+                        if(event.key.keysym.mod & KMOD_CTRL){
+                            strung_reset(&fb.new_file_path);
+                            strung_append(&fb.new_file_path, fb.items.items[fb.cursor].name);
+                            fb.renaming = true;
+                        }
                     default:
                         break;
                     }
