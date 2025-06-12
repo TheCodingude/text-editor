@@ -116,6 +116,24 @@ void move_file_to_fb(File_Browser *fb, char* filepath){
 
 }
 
+void open_file_into_strung(Strung *buff, char* file_path){
+
+    FILE *f = fopen(file_path, "r");
+    if(f == NULL){
+        return; // TODO: HAVE A POPUP THAT DISPLAYS ERROR  
+    } 
+
+    char buffer[1024];
+
+    strung_reset(buff);
+
+    while(fgets(buffer, sizeof(buffer), f)){
+        strung_append(buff, buffer);
+    }
+    
+    fclose(f);
+}
+
 
 void open_file(Editor *editor, char* filepath){
     editor->file_path = filepath;
