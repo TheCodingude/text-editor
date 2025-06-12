@@ -778,7 +778,10 @@ int main(int argc, char *argv[]) {
                                 fb.cursor = 0;
                             }
                         } else{
-                            create_new_file(fb.new_file_path.data);
+                            Strung final = strung_init("");
+                            strung_append(&final, fb.relative_path.data);
+                            strung_append(&final, fb.new_file_path.data);
+                            create_new_file(final.data);
                             read_entire_dir(&fb);
                             fb.new_file = false;
                         }
