@@ -123,14 +123,19 @@ void open_file_into_strung(Strung *buff, char* file_path){
         return; // TODO: HAVE A POPUP THAT DISPLAYS ERROR  
     } 
 
-    char buffer[1024];
-
     strung_reset(buff);
 
-    while(fgets(buffer, sizeof(buffer), f)){
-        strung_append(buff, buffer);
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t read;
+
+    while((read = getline(&line, &len, f)) != -1){
+        strung_append(buff, line);
     }
-    
+
+    if (line != NULL) {
+        free(line);
+    }
     fclose(f);
 }
 

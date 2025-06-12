@@ -28,7 +28,7 @@
 }while(0);
 
  
-
+#define CTRL_HELD event.key.keysym.mod & KMOD_CTRL
 
 #define FONT_8X16
 #include "font.h"
@@ -60,6 +60,7 @@ static void FB_items_append(FB_items *list, FB_item item) {
 }
 
 
+
 typedef struct{
     bool file_browser;
     size_t cursor;
@@ -71,6 +72,9 @@ typedef struct{
     bool renaming;
 
     Strung relative_path;
+    
+    char* copied_file_name;
+    Strung copied_file_contents;
 
     FB_items items;
 }File_Browser;
@@ -637,7 +641,7 @@ int main(int argc, char *argv[]) {
 
     char buffer[PATH_MAX];
     if(!(realpath(".", buffer))) fprintf(stderr, "Failed, A lot (at opening init directory)\n");
-    File_Browser fb = {.relative_path = strung_init(buffer), .scale = 1.5f, .new_file_path = strung_init("")};
+    File_Browser fb = {.relative_path = strung_init(buffer), .scale = 1.5f, .new_file_path = strung_init(""), .copied_file_contents = strung_init_custom("", 1024)};
     strung_append_char(&fb.relative_path, '/');
 
 
@@ -860,11 +864,39 @@ int main(int argc, char *argv[]) {
                         }
                         break;
                     case SDLK_r:
-                        if(event.key.keysym.mod & KMOD_CTRL){
+                        if(CTRL_HELD){
                             strung_reset(&fb.new_file_path);
                             strung_append(&fb.new_file_path, fb.items.items[fb.cursor].name);
                             fb.renaming = true;
                         }
+                    case SDLK_c:
+                        if (CTRL_HELD){
+                            fb.copied_file_name = fb.items.items[fb.cursor].name;
+                            open_file_into_strung(&fb.copied_file_contents, fb.copied_file_name);  // 
+                        }
+                        break;
+                    case SDLK_v:
+                        if(CTRL_HELD){
+                            if (fb.copied_file_name != NULL && fb.copied_file_contents.data != NULL) {
+                                Strung final_cpath = strung_init("");
+                                strung_append(&final_cpath, fb.relative_path.data);
+                                strung_append(&final_cpath, fb.copied_file_name);
+                                
+                                FILE *f = fopen(final_cpath.data, "w");
+                                if (f) {
+                                    fprintf(f, "%s", fb.copied_file_contents.data);
+                                    fclose(f);
+                                    read_entire_dir(&fb);
+                                } else {
+                                    fprintf(stderr, "Failed to open file for writing: %s\n", final_cpath.data);
+                                }
+                            } else {
+                                fprintf(stderr, "No file copied to paste.\n");
+                            }
+                        }
+                        break;
+                    case SDLK_x:
+                        break;
                     default:
                         break;
                     }
