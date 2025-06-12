@@ -66,6 +66,7 @@ typedef struct{
     
     Strung new_file_path;
     bool new_file;
+    bool new_dir;
 
     Strung relative_path;
 
@@ -781,9 +782,14 @@ int main(int argc, char *argv[]) {
                             Strung final = strung_init("");
                             strung_append(&final, fb.relative_path.data);
                             strung_append(&final, fb.new_file_path.data);
-                            create_new_file(final.data);
+                            if(fb.new_dir){
+                                mkdir(final.data, S_IRWXU);
+                            }else{
+                                create_new_file(final.data);
+                            }
                             read_entire_dir(&fb);
                             fb.new_file = false;
+                            fb.new_dir = false;
                         }
                     case SDLK_MINUS:
                         if (event.key.keysym.mod & KMOD_CTRL) fb.scale -= 0.5;
@@ -792,8 +798,13 @@ int main(int argc, char *argv[]) {
                         if (event.key.keysym.mod & KMOD_CTRL) fb.scale += 0.5;
                         break;
                     case SDLK_n:
-                        strung_reset(&fb.new_file_path);
-                        fb.new_file = true;
+                        if(event.key.keysym.mod & KMOD_CTRL){
+                            if(event.key.keysym.mod & KMOD_SHIFT){
+                                fb.new_dir = true;
+                            }
+                            strung_reset(&fb.new_file_path);
+                            fb.new_file = true;
+                        }
                         break;
                     default:
                         break;
