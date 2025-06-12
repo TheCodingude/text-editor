@@ -736,32 +736,36 @@ int main(int argc, char *argv[]) {
                         if(fb.cursor < fb.items.count - 1 && !fb.renaming) fb.cursor++;
                         break;
                     case SDLK_BACKSPACE:
-                        if(fb.new_file || fb.renaming) strung_remove_char(&fb.new_file_path, fb.new_file_path.size - 1);
+                        if((fb.new_file || fb.renaming) && fb.new_file_path.size > 0) strung_remove_char(&fb.new_file_path, fb.new_file_path.size - 1);
                         break;
                     case SDLK_RETURN:
                         if(fb.new_file){
-                            Strung final = strung_init("");
-                            strung_append(&final, fb.relative_path.data);
-                            strung_append(&final, fb.new_file_path.data);
-                            if(fb.new_dir){
-                                mkdir(final.data, S_IRWXU);
-                            }else{
-                                create_new_file(final.data);
+                            if(fb.new_file_path.size > 0){
+                                Strung final = strung_init("");
+                                strung_append(&final, fb.relative_path.data);
+                                strung_append(&final, fb.new_file_path.data);
+                                if(fb.new_dir){
+                                    mkdir(final.data, S_IRWXU);
+                                }else{
+                                    create_new_file(final.data);
+                                }
+                                read_entire_dir(&fb);
                             }
-                            read_entire_dir(&fb);
                             fb.new_file = false;
                             fb.new_dir = false;
                         } else if(fb.renaming){
-                            Strung new_name_path = strung_init("");
-                            strung_append(&new_name_path, fb.relative_path.data);
-                            strung_append(&new_name_path, fb.new_file_path.data);
-
-                            Strung old_name_path = strung_init("");
-                            strung_append(&old_name_path, fb.relative_path.data);
-                            strung_append(&old_name_path, fb.items.items[fb.cursor].name);
-
-                            if(rename(old_name_path.data, new_name_path.data) != 0) fprintf(stderr, "Failed to rename\n");
-                            read_entire_dir(&fb);
+                            if(fb.new_file_path.size > 0){
+                                Strung new_name_path = strung_init("");
+                                strung_append(&new_name_path, fb.relative_path.data);
+                                strung_append(&new_name_path, fb.new_file_path.data);
+    
+                                Strung old_name_path = strung_init("");
+                                strung_append(&old_name_path, fb.relative_path.data);
+                                strung_append(&old_name_path, fb.items.items[fb.cursor].name);
+    
+                                if(rename(old_name_path.data, new_name_path.data) != 0) fprintf(stderr, "Failed to rename\n");
+                                read_entire_dir(&fb);
+                            }
                             fb.renaming = false;
                         }else{
                             
