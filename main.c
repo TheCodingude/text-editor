@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <unistd.h>
 
 #ifndef _WIN32
 #include <dirent.h>
@@ -791,6 +792,24 @@ int main(int argc, char *argv[]) {
                             fb.new_file = false;
                             fb.new_dir = false;
                         }
+                        break;
+                    case SDLK_DELETE:
+                        Strung final_path = strung_init("");
+                        strung_append(&final_path, fb.relative_path.data);
+                        strung_append(&final_path, fb.items.items[fb.cursor].name);
+                        if(!(strcmp(fb.items.items[fb.cursor].name, "..") == 0 || strcmp(fb.items.items[fb.cursor].name, ".") == 0)){
+                            if(fb.items.items[fb.cursor].type == DT_DIR){
+                                rmdir(final_path.data);
+                            }else if(fb.items.items[fb.cursor].type == DT_REG){
+                                remove(final_path.data);
+                            } else{
+                                fprintf(stderr, "Invalid file type to delete\n");
+                            }
+                        }else{
+                            fprintf(stderr, "We do not support deleting current dir or prev dir, for safety reasons\n");
+                            fprintf(stderr, "and because i don't know what will happen\n");
+                        }
+                        read_entire_dir(&fb);
                     case SDLK_MINUS:
                         if (event.key.keysym.mod & KMOD_CTRL) fb.scale -= 0.5;
                         break;
