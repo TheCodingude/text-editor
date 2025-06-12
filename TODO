@@ -1,11 +1,14 @@
- 
+- copying, pasting, and cutting files in the file browser
+
 
 Maybe:
 - render text as a truetype font instead of bitmap array - i looked into it but nothing i did worked so ill come back to it
 
 
 
-DONE:
+DONE(out of the things i actually put on the list):
+- ctrl-r renames file in fb
+- Delete deletes file in fb
 - Control-n in fb creates a new file
 - have more info of the file in fb (size, edit time, etc)
 - dragging files into folder when in fb 
