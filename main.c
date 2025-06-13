@@ -127,6 +127,7 @@ void editor_recalculate_lines(Editor *editor);
 #include "filestuff.h"
 #include "la.c"
 
+
 #define WHITE vec4f(1.0f, 1.0f, 1.0f, 1.0f)
 #define LINE_NUMS_OFFSET (FONT_WIDTH * scale) * 5.0f + 10.0f
 
@@ -383,6 +384,8 @@ void renderText(char* text, float x, float y, float scale, Vec4f color) {
         }
     }
 }
+
+#include "window.c"
 
 void render_text_box(Editor *editor, char *buffer, char* prompt, float scale){
     int w, h;
@@ -832,22 +835,26 @@ int main(int argc, char *argv[]) {
                         }
                         break;
                     case SDLK_DELETE:
-                        Strung final_path = strung_init("");
-                        strung_append(&final_path, fb.relative_path.data);
-                        strung_append(&final_path, fb.items.items[fb.cursor].name);
-                        if(!(strcmp(fb.items.items[fb.cursor].name, "..") == 0 || strcmp(fb.items.items[fb.cursor].name, ".") == 0)){
-                            if(fb.items.items[fb.cursor].type == DT_DIR){
-                                rmdir(final_path.data);
-                            }else if(fb.items.items[fb.cursor].type == DT_REG){
-                                remove(final_path.data);
-                            } else{
-                                fprintf(stderr, "Invalid file type to delete\n");
+                        if(window_confirmation_popup("penis", "ARE YOU SURE?")){
+                            Strung final_path = strung_init("");
+                            strung_append(&final_path, fb.relative_path.data);
+                            strung_append(&final_path, fb.items.items[fb.cursor].name);
+                            if(!(strcmp(fb.items.items[fb.cursor].name, "..") == 0 || strcmp(fb.items.items[fb.cursor].name, ".") == 0)){
+                                if(fb.items.items[fb.cursor].type == DT_DIR){
+                                    rmdir(final_path.data);
+                                }else if(fb.items.items[fb.cursor].type == DT_REG){
+                                    remove(final_path.data);
+                                } else{
+                                    fprintf(stderr, "Invalid file type to delete\n");
+                                }
+                            }else{
+                                fprintf(stderr, "We do not support deleting current dir or prev dir, for safety reasons\n");
+                                fprintf(stderr, "and because i don't know what will happen\n");
                             }
-                        }else{
-                            fprintf(stderr, "We do not support deleting current dir or prev dir, for safety reasons\n");
-                            fprintf(stderr, "and because i don't know what will happen\n");
+                            read_entire_dir(&fb);
                         }
-                        read_entire_dir(&fb);
+                        printf("This is is\n");
+                        break;
                     case SDLK_MINUS:
                         if (event.key.keysym.mod & KMOD_CTRL) fb.scale -= 0.5;
                         break;
