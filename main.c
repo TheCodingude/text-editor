@@ -221,7 +221,8 @@ void editor_move_cursor_to_click(Editor* editor, int x, int y, float scale) {
 
 
 
-void draw_char(char c, float x, float y, float scale) {
+void draw_char(char c, float x, float y, float scale, Vec4f color) {
+    glColor4f(color.x, color.y, color.z, color.w);
     if (c < 32 || c > 126) return; // Only printable ASCII
     int idx = c - 32;
     for (int row = 0; row < FONT_HEIGHT; ++row) {
@@ -297,8 +298,14 @@ void renderTextScrolled(char* text, float x, float y, float scale, Scroll *scrol
     for (int i = 0; text[i]; ++i) {
         if (line >= scroll->y_offset && line < scroll->y_offset + lines_on_screen) {
             if (col >= scroll->x_offset && col < scroll->x_offset + cols_on_screen) {
-                if (text[i] != '\n') {
-                    draw_char(text[i], draw_x + (col - scroll->x_offset) * FONT_WIDTH * scale, draw_y + (line - scroll->y_offset) * FONT_HEIGHT * scale, scale);
+                if((text[i] == 'i' && text[i+1] == 'n' && text[i+2] == 't') || 
+                   (text[i] == 'n' && text[i+1] == 't' && text[i-1] == 'i') ||
+                   (text[i] == 't' && text[i-1] == 'n' && text[i-2] == 'i')     // yes, i know this is stupid. Im just messing around
+                  ){
+                    draw_char(text[i], draw_x + (col - scroll->x_offset) * FONT_WIDTH * scale, draw_y + (line - scroll->y_offset) * FONT_HEIGHT * scale, scale, vec4f(0.905f, 0.929f, 0.149f, 1.0f));
+                }
+                else if (text[i] != '\n') {
+                    draw_char(text[i], draw_x + (col - scroll->x_offset) * FONT_WIDTH * scale, draw_y + (line - scroll->y_offset) * FONT_HEIGHT * scale, scale, WHITE);
                 }
             }
         }
@@ -379,7 +386,7 @@ void renderText(char* text, float x, float y, float scale, Vec4f color) {
             y += FONT_HEIGHT * scale;
             x = orig_x;
         } else {
-            draw_char(text[i], x, y, scale);
+            draw_char(text[i], x, y, scale, color);
             x += FONT_WIDTH * scale;
         }
     }
