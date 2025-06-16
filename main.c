@@ -303,8 +303,13 @@ void renderTextScrolled(char* text, float x, float y, float scale, Scroll *scrol
                    (text[i] == 't' && text[i-1] == 'n' && text[i-2] == 'i')     // yes, i know this is stupid. Im just messing around
                   ){
                     draw_char(text[i], draw_x + (col - scroll->x_offset) * FONT_WIDTH * scale, draw_y + (line - scroll->y_offset) * FONT_HEIGHT * scale, scale, vec4f(0.905f, 0.929f, 0.149f, 1.0f));
-                }
-                else if (text[i] != '\n') {
+                }else if(text[i] == '/' && text[i+1] == '/'){
+                    while(text[i] != '\n'){
+                        draw_char(text[i], draw_x + (col - scroll->x_offset) * FONT_WIDTH * scale, draw_y + (line - scroll->y_offset) * FONT_HEIGHT * scale, scale, vec4f(0.074f, 0.321f, 0.027f, 1.0f));
+                        col++;
+                        i++;
+                    }
+                }else if (text[i] != '\n') {
                     draw_char(text[i], draw_x + (col - scroll->x_offset) * FONT_WIDTH * scale, draw_y + (line - scroll->y_offset) * FONT_HEIGHT * scale, scale, WHITE);
                 }
             }
