@@ -1,10 +1,10 @@
 
 main: main.c
-	gcc main.c -o main -lGL -lm -lSDL2 -ggdb
+	gcc main.c -o main -lGL -lm -lSDL2 -ggdb -lSDL2_ttf
 	./main main.c
 
-test: test.c
-	gcc test.c -o test -lGL -lm -lSDL2 -ggdb
+test: Editor_ttf_test.c
+	gcc Editor_ttf_test.c -o test -lGL -lm -lSDL2 -ggdb -lSDL2_ttf
 	./test
 
 clean:
