@@ -76,6 +76,8 @@ typedef struct{
     char* copied_file_name;
     Strung copied_file_contents;
 
+    Strung search_buffer;
+
     FB_items items;
 }File_Browser;
 
@@ -648,6 +650,26 @@ void render_file_browser(Editor *editor, File_Browser *fb) {
     }
 }
 
+void fb_search(File_Browser *fb){       // VERY basic search
+    int search_len = fb->search_buffer.size;
+
+
+    for(int i = 0; i < fb->items.count; i++){
+
+        Strung tmp = strung_init(fb->items.items[i].name);
+
+        char* substr = strung_substr(&tmp, 0, search_len);
+
+        if(strcmp(substr, fb->search_buffer.data) == 0){
+            fb->cursor = i;
+        }
+        
+
+    }
+
+
+}
+
 int main(int argc, char *argv[]) {
     Editor editor = {.cursor = {0}, 
                     .file_path = "", 
@@ -720,7 +742,10 @@ int main(int argc, char *argv[]) {
                 if(fb.file_browser){ 
                     if(fb.new_file || fb.renaming){
                         strung_append(&fb.new_file_path, event.text.text);
-                    } 
+                    } else{
+                        strung_append(&fb.search_buffer, event.text.text);
+                        fb_search(&fb);
+                    }
                 } else {
                     if(editor.selection){
                         strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
@@ -1004,6 +1029,7 @@ int main(int argc, char *argv[]) {
                         case SDLK_F2:
                             read_entire_dir(&fb);
                             fb.file_browser = true;
+                            strung_reset(&fb.search_buffer);
                             break;
                         case SDLK_F3:
                             strung_reset(&editor.command_text);
