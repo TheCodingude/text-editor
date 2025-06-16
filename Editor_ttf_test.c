@@ -173,7 +173,7 @@ void editor_recalculate_lines(Editor *editor);
 #include "filestuff.h"
 #include "la.c"
 
-TTF_Font *font; // global font for now
+
 
 #define WHITE vec4f(1.0f, 1.0f, 1.0f, 1.0f)
 #define LINE_NUMS_OFFSET (FONT_WIDTH * scale) * 5.0f + 10.0f
@@ -200,7 +200,7 @@ GLuint create_texture_from_surface(SDL_Surface* surface) {
 
 
 // Bitmap renderer
-#if 1
+#if 0
 #define FONT_8X16
 #include "font.h"
 void draw_char(char c, float x, float y, float scale, Vec4f color) {
@@ -278,8 +278,9 @@ void renderText(char* text, float x, float y, float scale, Vec4f color) {
 }
 
 #else
-#define FONT_WIDTH 16
+#define FONT_WIDTH 12
 #define FONT_HEIGHT 20
+TTF_Font *font; // global font for now
 
 void draw_char(char c, float x, float y, float scale, Vec4f color) {
     char str[2] = {c, '\0'};
@@ -618,7 +619,7 @@ void render_text_box(Editor *editor, char *buffer, char* prompt, float scale){
     int w, h;
     SDL_GetWindowSize(editor->window, &w, &h);
 
-    float scale_prompt = 2.0f;
+    float scale_prompt = 1.0f;
     int prompt_width = strlen(prompt) * FONT_WIDTH * scale_prompt;
 
     float x = 0;
@@ -636,11 +637,11 @@ void render_text_box(Editor *editor, char *buffer, char* prompt, float scale){
     // prompt
     float prompt_x = x + 10;
     float prompt_y = y - 40;
-    // renderText(prompt, prompt_x, prompt_y, scale_prompt, WHITE);
+    renderText(prompt, prompt_x, prompt_y, scale_prompt, WHITE);
 
     // command text
     float cmd_x = prompt_x + prompt_width;
-    // renderText(editor->command_text.data, cmd_x, prompt_y, scale_prompt, WHITE);
+    renderText(editor->command_text.data, cmd_x, prompt_y, scale_prompt, WHITE);
 
     // cursor
     int cx = cmd_x + editor->command_cursor.pos_in_text * FONT_WIDTH * scale_prompt;
@@ -738,7 +739,7 @@ void render_line_numbers(Editor *editor, float scale) {
     char buf[16]; // should be plenty of lines
 
     if(editor->lines.size == 0){
-        // renderText("  1", x, y, scale, vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+        renderText("  1", x, y, scale, vec4f(1.0f, 1.0f, 1.0f, 1.0f));
     }else{
         for (int i = first_line; i < last_line; ++i) {
             if (i >= editor->lines.size){
@@ -746,9 +747,9 @@ void render_line_numbers(Editor *editor, float scale) {
             }
             snprintf(buf, sizeof(buf), "%3d", i + 1);
             if (i == editor->cursor.line){
-                // renderText(buf, x, y + (i - first_line) * FONT_HEIGHT * scale, scale, vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+                renderText(buf, x, y + (i - first_line) * FONT_HEIGHT * scale, scale, vec4f(1.0f, 1.0f, 1.0f, 1.0f));
             } else{
-                // renderText(buf, x, y + (i - first_line) * FONT_HEIGHT * scale, scale, vec4f(1.0f, 1.0f, 1.0f, 0.4f));
+                renderText(buf, x, y + (i - first_line) * FONT_HEIGHT * scale, scale, vec4f(1.0f, 1.0f, 1.0f, 0.4f));
             }
         }
     }
@@ -775,7 +776,7 @@ void render_file_browser(Editor *editor, File_Browser *fb) {
     char name_buf[PATH_MAX];
     char info_buf[128];
 
-    // renderText(fb->relative_path.data, 10, 10, fb->scale, WHITE); // this is one place where a freetype font would 100% look better
+    renderText(fb->relative_path.data, 10, 10, fb->scale, WHITE); // this is one place where a freetype font would 100% look better
 
     // Calculate max width for size column
     int max_size_width = 0;
@@ -849,12 +850,12 @@ void render_file_browser(Editor *editor, File_Browser *fb) {
                     glVertex2f(name_x + (FONT_WIDTH * fb->scale) * 10, y + FONT_HEIGHT * fb->scale);
                     glVertex2f(name_x, y + FONT_HEIGHT * fb->scale);
                 glEnd();
-                // renderText(fb->new_file_path.data, name_x + 5, y + 3, fb->scale - 0.1, WHITE);
+                renderText(fb->new_file_path.data, name_x + 5, y + 3, fb->scale - 0.1, WHITE);
             }
         }
         
         // Draw info (size, time)
-        // renderText(info_buf, x, y, fb->scale, WHITE);
+        renderText(info_buf, x, y, fb->scale, WHITE);
         
         // Draw name (after info)
         if(fb->renaming && fb->cursor == i){
@@ -865,9 +866,9 @@ void render_file_browser(Editor *editor, File_Browser *fb) {
                 glVertex2f(name_x + (FONT_WIDTH * fb->scale) * 10, y + FONT_HEIGHT * fb->scale);
                 glVertex2f(name_x - 5, y + FONT_HEIGHT * fb->scale);
             glEnd();
-            // renderText(fb->new_file_path.data, name_x, y, fb->scale, WHITE);
+            renderText(fb->new_file_path.data, name_x, y, fb->scale, WHITE);
         }else{
-            // renderText(item->name, name_x, y, fb->scale, WHITE);
+            renderText(item->name, name_x, y, fb->scale, WHITE);
         }
         
 
@@ -965,7 +966,9 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    font = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 20);
+    font = TTF_OpenFont("MapleMono-Regular.ttf", 16);
+
+    
 
     bool line_switch = false;
 
@@ -1008,6 +1011,7 @@ int main(int argc, char *argv[]) {
 
     bool running = true;
     while (running) {
+        
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
@@ -1769,6 +1773,7 @@ int main(int argc, char *argv[]) {
             if(!fb.file_browser) renderCursorScrolled(&editor, scale, &editor.scroll);
         }
         
+        renderText("Fuck you", 100.0f, 100.0f, 3, WHITE);
 
         
 
