@@ -28,7 +28,8 @@
 }while(0);
 
  
-#define CTRL_HELD event.key.keysym.mod & KMOD_CTRL
+#define CTRL_HELD (event.key.keysym.mod & KMOD_CTRL)
+#define SHIFT_HELD (event.key.keysym.mod & KMOD_SHIFT)
 
 #define FONT_8X16
 #include "font.h"
@@ -59,6 +60,52 @@ static void FB_items_append(FB_items *list, FB_item item) {
     list->items[list->count++] = item;
 }
 
+#define MAX_HISTORY 100
+
+typedef struct {
+    int pos_in_text;
+    int pos_in_line;
+    int line;
+}Cursor;
+
+
+typedef struct {
+    Strung text;
+    Cursor cursor;
+} HistoryEntry;
+
+
+
+typedef struct {
+    HistoryEntry* history[MAX_HISTORY];
+    int top;
+} Stack;
+
+void stack_push(Stack* stack, const Strung* text, Cursor cursor) {
+    if (stack->top >= MAX_HISTORY) return;
+
+    HistoryEntry* entry = malloc(sizeof(HistoryEntry));
+    entry->text = strung_copy(text);
+    entry->cursor = cursor;
+
+    stack->history[stack->top++] = entry;
+}
+
+
+HistoryEntry* stack_pop(Stack* stack) {
+    if (stack->top == 0) return NULL;
+    return stack->history[--stack->top];
+}
+
+
+void stack_clear(Stack* stack) {
+    while (stack->top > 0) {
+        HistoryEntry* e = stack->history[--stack->top];
+        strung_free(&e->text);
+        free(e);
+    }
+}
+
 
 
 typedef struct{
@@ -86,11 +133,7 @@ typedef struct {
     int y_offset; // vertical 
 } Scroll;
 
-typedef struct {
-    int pos_in_text;
-    int pos_in_line;
-    int line;
-}Cursor;
+
 
 typedef struct{
     size_t start;
@@ -122,6 +165,9 @@ typedef struct{
     Cursor command_cursor;
     bool in_command;
     Strung command_text;
+
+    Stack undo_stack;
+    Stack redo_stack;
 }Editor;
 
 void editor_recalculate_lines(Editor *editor);
@@ -693,6 +739,45 @@ void fb_search(File_Browser *fb){       // VERY basic search
 
 }
 
+void save_undo_state(Editor* editor) {
+    stack_push(&editor->undo_stack, &editor->text, editor->cursor);
+    stack_clear(&editor->redo_stack);
+}
+
+
+void undo(Editor* editor) {
+    HistoryEntry* entry = stack_pop(&editor->undo_stack);
+    if (!entry) return;
+
+    stack_push(&editor->redo_stack, &editor->text, editor->cursor);
+    strung_free(&editor->text);
+    editor->text = entry->text;
+    editor->cursor = entry->cursor;
+    free(entry);
+
+    if (editor->cursor.pos_in_text > editor->text.size) {
+        editor->cursor.pos_in_text = editor->text.size;
+    }
+
+}
+
+void redo(Editor* editor) {
+    HistoryEntry* entry = stack_pop(&editor->redo_stack);
+    if (!entry) return;
+
+    stack_push(&editor->undo_stack, &editor->text, editor->cursor);
+    strung_free(&editor->text);
+    editor->text = entry->text;
+    editor->cursor = entry->cursor;
+    free(entry);
+
+    if (editor->cursor.pos_in_text > editor->text.size) {
+        editor->cursor.pos_in_text = editor->text.size;
+    }
+
+}
+
+
 int main(int argc, char *argv[]) {
     Editor editor = {.cursor = {0}, 
                     .file_path = "", 
@@ -779,6 +864,7 @@ int main(int argc, char *argv[]) {
                         editor.selection = false;
                     }
                     if (!(SDL_GetModState() & KMOD_CTRL) && !editor.in_command) {
+                            save_undo_state(&editor);
                         strung_insert_string(&editor.text, event.text.text, editor.cursor.pos_in_text);
                         editor.cursor.pos_in_text += strlen(event.text.text);
                         editor.cursor.pos_in_line += strlen(event.text.text);
@@ -967,6 +1053,7 @@ int main(int argc, char *argv[]) {
                         break;
                     case SDLK_x:
                         break;
+                    
                     default:
                         break;
                     }
@@ -981,6 +1068,7 @@ int main(int argc, char *argv[]) {
                                 }
                             }
                             else if (editor.cursor.pos_in_text > 0) {
+                                    save_undo_state(&editor);
 
                                 if (editor.selection) {
                                     if (editor.selection_end < editor.selection_start) {
@@ -1022,11 +1110,13 @@ int main(int argc, char *argv[]) {
                                     strung_remove_char(&editor.command_text, editor.command_cursor.pos_in_text);
                                 }
                             } else if (editor.cursor.pos_in_text < editor.text.size) {
+                                save_undo_state(&editor);
                                 strung_remove_char(&editor.text, editor.cursor.pos_in_text);
                                 editor_recalculate_lines(&editor); // Can optimize a bit if i recalculate only when deleting newline
                             }
                             break;
                         case SDLK_RETURN:
+                            save_undo_state(&editor);
                             strung_insert_char(&editor.text, '\n', editor.cursor.pos_in_text);
                             editor.cursor.pos_in_text++;
                             editor.cursor.line++;
@@ -1034,6 +1124,7 @@ int main(int argc, char *argv[]) {
                             editor_recalculate_lines(&editor);
                             break;
                         case SDLK_TAB:
+                            save_undo_state(&editor);
                             strung_insert_string(&editor.text, "    ", editor.cursor.pos_in_text);
                             editor.cursor.pos_in_line += 4;
                             editor.cursor.pos_in_text += 4;
@@ -1253,6 +1344,7 @@ int main(int argc, char *argv[]) {
                             }
                             break;
                         case SDLK_x:
+                            save_undo_state(&editor);
                             if(event.key.keysym.mod & KMOD_CTRL){
                                 if(editor.selection){
                                     char* selected = strung_substr(&editor.text, editor.selection_start, editor.selection_end - editor.selection_start);
@@ -1280,6 +1372,7 @@ int main(int argc, char *argv[]) {
                             }
                             break;
                         case SDLK_v:
+                            save_undo_state(&editor);
                             if(event.key.keysym.mod & KMOD_CTRL){
                                 char* text = SDL_GetClipboardText();
                                 strung_insert_string(&editor.text, text, editor.cursor.pos_in_text);
@@ -1289,6 +1382,14 @@ int main(int argc, char *argv[]) {
                                 editor_recalculate_lines(&editor);
                             }
                             break;
+                        case SDLK_z:
+                            if(CTRL_HELD){
+                                if(SHIFT_HELD){
+                                    redo(&editor);
+                                }else{
+                                    undo(&editor);
+                                }
+                            }
                         case SDLK_PAGEUP:
                             editor.scroll.y_offset -= 5;
                             editor.cursor.line -= 5;

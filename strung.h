@@ -198,6 +198,15 @@ void strung_delete_range(Strung* str, int start, int end) {
     str->size -= num_to_remove;
 }
 
+Strung strung_copy(const Strung* src) { // creates a copy of source strung
+    Strung copy = {0};
+    copy.capacity = src->capacity;
+    copy.size = src->size;
+    copy.data = malloc(copy.capacity);
+    memcpy(copy.data, src->data, copy.size);
+    copy.data[copy.size] = '\0';
+    return copy;
+}
 
 
 
