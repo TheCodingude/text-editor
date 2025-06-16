@@ -613,7 +613,30 @@ void render_file_browser(Editor *editor, File_Browser *fb) {
                 glVertex2f(bx, by);
                 glVertex2f(x, by);
             glEnd();
-
+            if(fb->search_buffer.size > 0){
+        
+                float sy = fb->cursor * (FONT_HEIGHT * fb->scale);
+        
+                glColor4f(0.3f, 0.7f, 1.0f, 0.7f);
+        
+                glBegin(GL_QUADS);
+                    glVertex2f(name_x, y);
+                    glVertex2f(name_x + (FONT_WIDTH * fb->scale) * fb->search_buffer.size, y);
+                    glVertex2f(name_x + (FONT_WIDTH * fb->scale) * fb->search_buffer.size, y + FONT_HEIGHT * fb->scale);
+                    glVertex2f(name_x, y + FONT_HEIGHT * fb->scale);
+                glEnd();
+        
+            }
+            if(fb->new_file){
+                glColor4f(0.240, 0.240, 0.240, 1.0f);
+                glBegin(GL_QUADS);
+                    glVertex2f(name_x, y);
+                    glVertex2f(name_x + (FONT_WIDTH * fb->scale) * 10, y);
+                    glVertex2f(name_x + (FONT_WIDTH * fb->scale) * 10, y + FONT_HEIGHT * fb->scale);
+                    glVertex2f(name_x, y + FONT_HEIGHT * fb->scale);
+                glEnd();
+                renderText(fb->new_file_path.data, name_x + 5, y + 3, fb->scale - 0.1, WHITE);
+            }
         }
         
         // Draw info (size, time)
@@ -638,16 +661,9 @@ void render_file_browser(Editor *editor, File_Browser *fb) {
 
         
     }
-    if(fb->new_file){
-        glColor4f(0.240, 0.240, 0.240, 1.0f);
-        glBegin(GL_QUADS);
-            glVertex2f(name_x, y);
-            glVertex2f(name_x + (FONT_WIDTH * fb->scale) * 10, y);
-            glVertex2f(name_x + (FONT_WIDTH * fb->scale) * 10, y + FONT_HEIGHT * fb->scale);
-            glVertex2f(name_x, y + FONT_HEIGHT * fb->scale);
-        glEnd();
-        renderText(fb->new_file_path.data, name_x + 5, y + 3, fb->scale - 0.1, WHITE);
-    }
+
+
+
 }
 
 void fb_search(File_Browser *fb){       // VERY basic search
@@ -658,12 +674,19 @@ void fb_search(File_Browser *fb){       // VERY basic search
 
         Strung tmp = strung_init(fb->items.items[i].name);
 
-        char* substr = strung_substr(&tmp, 0, search_len);
-
-        if(strcmp(substr, fb->search_buffer.data) == 0){
-            fb->cursor = i;
+        if (tmp.size < search_len){
+            // do nothing
+        } else{
+            char* substr = strung_substr(&tmp, 0, search_len);
+    
+            if(substr == NULL){
+                return;
+            }
+    
+            if(strcmp(substr, fb->search_buffer.data) == 0){
+                fb->cursor = i;
+            }
         }
-        
 
     }
 
@@ -784,6 +807,7 @@ int main(int argc, char *argv[]) {
                         break;
                     case SDLK_BACKSPACE:
                         if((fb.new_file || fb.renaming) && fb.new_file_path.size > 0) strung_remove_char(&fb.new_file_path, fb.new_file_path.size - 1);
+                        else{strung_remove_char(&fb.search_buffer, fb.search_buffer.size-1);};
                         break;
                     case SDLK_RETURN:
                         if(fb.new_file){
@@ -873,6 +897,7 @@ int main(int argc, char *argv[]) {
                                 fb.cursor = 0;
                             }
                         }
+                        strung_reset(&fb.search_buffer);
                         break;
                     case SDLK_DELETE:
 

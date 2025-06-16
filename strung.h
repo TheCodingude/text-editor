@@ -163,7 +163,7 @@ void strung_insert_string(Strung* str, const char* text, int position) {
 
 void strung_remove_char(Strung* str, int position) {
     if (position < 0 || position >= str->size) {
-        printf("Unreachable strung_remove_char");
+        printf("Index out of range strung_remove_char");
         return;
     }
     memmove(str->data + position, str->data + position + 1, str->size - position);
