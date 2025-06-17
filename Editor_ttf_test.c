@@ -334,8 +334,8 @@ void renderText(char* text, float x, float y, float scale, Vec4f color) {
 }
 
 #else
-#define FONT_WIDTH 12
-#define FONT_HEIGHT 20
+#define FONT_WIDTH 36
+#define FONT_HEIGHT 60
 TTF_Font *font; // global font for now
 
 void draw_char(char c, float x, float y, float scale, Vec4f color) {
@@ -975,7 +975,7 @@ int main(int argc, char *argv[]) {
 
     char buffer[PATH_MAX];
     if(!(realpath(".", buffer))) fprintf(stderr, "Failed, A lot (at opening init directory)\n");
-    File_Browser fb = {.relative_path = strung_init(buffer), .scale = 1.5f, .new_file_path = strung_init(""), .copied_file_contents = strung_init_custom("", 1024)};
+    File_Browser fb = {.relative_path = strung_init(buffer), .scale = 0.5f, .new_file_path = strung_init(""), .copied_file_contents = strung_init_custom("", 1024)};
     strung_append_char(&fb.relative_path, '/');
 
     if(TTF_Init() < 0){
@@ -983,7 +983,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    font = TTF_OpenFont("MapleMono-Regular.ttf", 16);
+    font = TTF_OpenFont("MapleMono-Regular.ttf", 48); 
+
 
     
 
@@ -1020,7 +1021,7 @@ int main(int argc, char *argv[]) {
 
     SDL_StartTextInput();
 
-    float scale = 1.0f;
+    float scale = 0.3f;
 
     SDL_EventState(SDL_DROPFILE, SDL_ENABLE); 
     glEnable(GL_BLEND);
@@ -1200,10 +1201,10 @@ int main(int argc, char *argv[]) {
                         read_entire_dir(&fb);
                         break;
                     case SDLK_MINUS:
-                        if (event.key.keysym.mod & KMOD_CTRL) fb.scale -= 0.5;
+                        if (event.key.keysym.mod & KMOD_CTRL) fb.scale -= 0.1;
                         break;
                     case SDLK_EQUALS:
-                        if (event.key.keysym.mod & KMOD_CTRL) fb.scale += 0.5;
+                        if (event.key.keysym.mod & KMOD_CTRL) fb.scale += 0.1;
                         break;
                     case SDLK_n:
                         if(event.key.keysym.mod & KMOD_CTRL){
