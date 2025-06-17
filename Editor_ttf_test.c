@@ -32,6 +32,62 @@
 #define CTRL_HELD (event.key.keysym.mod & KMOD_CTRL)
 #define SHIFT_HELD (event.key.keysym.mod & KMOD_SHIFT)
 
+
+typedef struct {
+    GLuint texture;
+    int width, height;
+    int advance;
+    int minx, maxx, miny, maxy;
+} Glyph;
+
+#define GLYPH_CACHE_SIZE 256
+Glyph* glyph_cache[GLYPH_CACHE_SIZE]; // ASCII range for now
+
+
+void cache_glyph(char c, TTF_Font* font) {
+    if (glyph_cache[(int)c]) return;
+
+    Glyph* g = malloc(sizeof(Glyph));
+    if (!g) return;
+
+    char str[2] = {c, '\0'};
+    SDL_Color white = {255, 255, 255, 255};
+
+    SDL_Surface* raw = TTF_RenderText_Blended(font, str, white);
+    if (!raw) {
+        free(g);
+        return;
+    }
+
+    // Convert to RGBA32 to avoid format issues
+    SDL_Surface* surface = SDL_ConvertSurfaceFormat(raw, SDL_PIXELFORMAT_RGBA32, 0);
+    SDL_FreeSurface(raw);
+    if (!surface) {
+        free(g);
+        return;
+    }
+
+    GLuint tex;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surface->w, surface->h,
+                 0, GL_RGBA, GL_UNSIGNED_BYTE, surface->pixels);
+
+    g->texture = tex;
+    g->width = surface->w;
+    g->height = surface->h;
+
+    TTF_GlyphMetrics(font, c, &g->minx, &g->maxx, &g->miny, &g->maxy, &g->advance);
+    glyph_cache[(int)c] = g;
+
+    SDL_FreeSurface(surface);
+}
+
+
+
 typedef struct{
     char* name;
     int type; // Just using d_type
@@ -283,71 +339,32 @@ void renderText(char* text, float x, float y, float scale, Vec4f color) {
 TTF_Font *font; // global font for now
 
 void draw_char(char c, float x, float y, float scale, Vec4f color) {
-    char str[2] = {c, '\0'};
-
-    SDL_Color sdl_color = {
-        (Uint8)(color.x * 255),
-        (Uint8)(color.y * 255),
-        (Uint8)(color.z * 255),
-        (Uint8)(color.w * 255)
-    };
-
-    SDL_Surface* surface = TTF_RenderText_Blended(font, str, sdl_color);
-
-    SDL_PixelFormat* fmt = SDL_AllocFormat(SDL_PIXELFORMAT_RGBA32);
-    SDL_Surface* converted = SDL_ConvertSurface(surface, fmt, 0);
-    SDL_FreeFormat(fmt);
-    SDL_FreeSurface(surface);
-    surface = converted;
+    if ((unsigned char)c >= GLYPH_CACHE_SIZE) return;
+    if (!glyph_cache[(int)c]) cache_glyph(c, font);  
 
 
-    if (!surface) return;
-
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-
-    // Use correct format — SDL_Surface is usually in BGRA or RGBA
-    GLenum format;
-    if (surface->format->BytesPerPixel == 4) {
-        // Detect channel order
-        if (surface->format->Rmask == 0x000000ff)
-            format = GL_RGBA;
-        else
-            format = GL_BGRA;
-    } else {
-        format = GL_RGB;
-    }
-
-    glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA,
-        surface->w, surface->h, 0,
-        format, GL_UNSIGNED_BYTE, surface->pixels
-    );
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    float w = surface->w * scale;
-    float h = surface->h * scale;
+    Glyph* g = glyph_cache[(int)c];
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
     glEnable(GL_TEXTURE_2D);
-    glBindTexture(GL_TEXTURE_2D, texture);
+    glBindTexture(GL_TEXTURE_2D, g->texture);
+    glColor4f(color.x, color.y, color.z, color.w);
+
+    float w = g->width * scale;
+    float h = g->height * scale;
 
     glBegin(GL_QUADS);
-        glTexCoord2f(0.0f, 0.0f); glVertex2f(x,     y);
-        glTexCoord2f(1.0f, 0.0f); glVertex2f(x + w, y);
-        glTexCoord2f(1.0f, 1.0f); glVertex2f(x + w, y + h);
-        glTexCoord2f(0.0f, 1.0f); glVertex2f(x,     y + h);
+        glTexCoord2f(0, 0); glVertex2f(x, y);
+        glTexCoord2f(1, 0); glVertex2f(x + w, y);
+        glTexCoord2f(1, 1); glVertex2f(x + w, y + h);
+        glTexCoord2f(0, 1); glVertex2f(x, y + h);
     glEnd();
 
     glDisable(GL_TEXTURE_2D);
-    glDeleteTextures(1, &texture);
-    SDL_FreeSurface(surface);
 }
+
+
 
 void renderTextScrolled(char* text, float x, float y, float scale, Scroll* scroll, Vec4f color) {
     int w, h;
@@ -1773,7 +1790,6 @@ int main(int argc, char *argv[]) {
             if(!fb.file_browser) renderCursorScrolled(&editor, scale, &editor.scroll);
         }
         
-        renderText("Fuck you", 100.0f, 100.0f, 3, WHITE);
 
         
 
@@ -1786,6 +1802,14 @@ int main(int argc, char *argv[]) {
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(editor.window);
     SDL_Quit();
+
+    for (int i = 0; i < GLYPH_CACHE_SIZE; ++i) {
+    if (glyph_cache[i]) {
+        glDeleteTextures(1, &glyph_cache[i]->texture);
+        free(glyph_cache[i]);
+    }
+}
+
 
     return 0;
 }
