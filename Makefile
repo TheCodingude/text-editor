@@ -3,6 +3,10 @@ main: main.c
 	gcc main.c -o main -lGL -lm -lSDL2 -ggdb -lSDL2_ttf
 	./main main.c
 
+old: old_rendering.c 
+	gcc old_rendering.c -o old -lGL -lm -lSDL2 -ggdb 
+	./old
+
 test: Editor_ttf_test.c
 	gcc Editor_ttf_test.c -o test -lGL -lm -lSDL2 -ggdb -lSDL2_ttf
 	./test
