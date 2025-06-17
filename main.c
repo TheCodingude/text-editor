@@ -288,53 +288,63 @@ void draw_char(char c, float x, float y, float scale, Vec4f color) {
 
 void renderTextScrolled(Editor* editor, float x, float y, float scale, Vec4f color) {
     int w, h;
-    SDL_GetWindowSize(editor->window, &w, &h); // assuming `editor` is global; otherwise pass it in
+    SDL_GetWindowSize(editor->window, &w, &h);
 
     int line_height = FONT_HEIGHT * scale;
     int max_lines = h / line_height;
 
-    int scroll_offset = editor->scroll.y_offset;
+    int scroll_y = editor->scroll.y_offset;
+    int scroll_x = editor->scroll.x_offset;
+
+    float base_x = LINE_NUMS_OFFSET;  // Matches renderCursorScrolled
+    float draw_y = y;
 
     int current_line = 0;
-    int cursor_x = x;
-    int cursor_y = y;
-
-    const char* ptr = editor->text.data;
     int line_number = 0;
+    const char* ptr = editor->text.data;
 
-    // Skip lines before scroll offset
-    while (line_number < scroll_offset && *ptr != '\0') {
-        if (*ptr == '\n') {
-            ++line_number;
-        }
+    // Skip lines above scroll
+    while (line_number < scroll_y && *ptr != '\0') {
+        if (*ptr == '\n') ++line_number;
         ++ptr;
     }
 
-    // Render only visible lines
+    // Draw visible lines
     while (*ptr != '\0' && current_line < max_lines) {
-        char c = *ptr;
+        float draw_x = base_x;
+        int col = 0;
 
-        if (c == '\n') {
-            cursor_y += line_height;
-            cursor_x = x;
-            ++current_line;
-        } else {
+        while (*ptr != '\0' && *ptr != '\n') {
+            char c = *ptr;
+
             if (!glyph_cache[(unsigned char)c]) {
                 cache_glyph(c, font);
             }
 
             Glyph* g = glyph_cache[(unsigned char)c];
-            if (g) {
-                draw_char(c, cursor_x, cursor_y, scale, color);
-                cursor_x += g->advance * scale;
+            float advance = g ? g->advance * scale : FONT_WIDTH * scale;
+
+            // Draw only visible columns
+            if (col >= scroll_x) {
+                draw_char(c, draw_x, draw_y, scale, color);
+                draw_x += advance;
             } else {
-                cursor_x += FONT_WIDTH * scale;
+                // Skip column
+                draw_x += advance;
             }
+
+            ++ptr;
+            ++col;
         }
 
-        ++ptr;
+        // Skip newline
+        if (*ptr == '\n') ++ptr;
+
+        draw_y += line_height;
+        ++current_line;
     }
 }
+
 
 void renderText(char* text, float x, float y, float scale, Vec4f color) {
     float orig_x = x;
@@ -416,37 +426,59 @@ void render_selection(Editor *editor, float scale, Scroll *scroll) {
 
 void editor_move_cursor_to_click(Editor* editor, int x, int y, float scale) {
     int line_height = FONT_HEIGHT * scale;
-    int char_width = FONT_WIDTH * scale;
-
-    // Adjust for padding and scroll
     int relative_y = y - 10;
-    int relative_x = x - (LINE_NUMS_OFFSET); // account for line numbas
-    
     int clicked_line = (relative_y / line_height) + editor->scroll.y_offset;
-    int clicked_col  = relative_x / char_width;
 
-    // Clamp line to available lines
+    // Clamp line
     if (clicked_line < 0) clicked_line = 0;
     if (clicked_line >= (int)editor->lines.size) clicked_line = editor->lines.size - 1;
 
     Line line = editor->lines.lines[clicked_line];
     int line_length = line.end - line.start;
+    const char* line_ptr = &editor->text.data[line.start];
 
+    float relative_x = x - LINE_NUMS_OFFSET;
     if (relative_x < 0) {
         editor->cursor.pos_in_text = line.start;
-        editor->cursor.line = clicked_line;
         editor->cursor.pos_in_line = 0;
+        editor->cursor.line = clicked_line;
         return;
     }
 
-    // Clamp col to line length
-    if (clicked_col < 0) clicked_col = 0;
-    if (clicked_col > line_length) clicked_col = line_length;
+    float current_x = 0.0f;
+    int best_col = 0;
+    float best_dist = 1e9;
 
-    editor->cursor.pos_in_text = line.start + clicked_col;
+    for (int col = 0; col <= line_length; ++col) {
+        float mid_x = current_x;
+
+        if (col < line_length) {
+            char c = line_ptr[col];
+            if (!glyph_cache[(unsigned char)c]) cache_glyph(c, font);
+            Glyph* g = glyph_cache[(unsigned char)c];
+            float advance = g ? g->advance * scale : FONT_WIDTH * scale;
+            mid_x += advance / 2.0f;
+        }
+
+        float dist = fabsf(mid_x - relative_x);
+        if (dist < best_dist) {
+            best_dist = dist;
+            best_col = col;
+        }
+
+        if (col < line_length) {
+            char c = line_ptr[col];
+            Glyph* g = glyph_cache[(unsigned char)c];
+            current_x += g ? g->advance * scale : FONT_WIDTH * scale;
+        }
+    }
+
     editor->cursor.line = clicked_line;
-    editor->cursor.pos_in_line = clicked_col;
+    editor->cursor.pos_in_line = best_col;
+    editor->cursor.pos_in_text = line.start + best_col;
 }
+
+
 
 void clamp_scroll(Editor *editor, Scroll *scroll, float scale) {
     int w, h;
@@ -493,48 +525,49 @@ void ensure_cursor_visible(Editor *editor, Scroll *scroll, float scale) {
 
 
 void renderCursorScrolled(Editor *editor, float scale, Scroll *scroll) {
-    float line_number_offset = LINE_NUMS_OFFSET;
-    float x = line_number_offset;
-    float y = 10 + (editor->cursor.line - scroll->y_offset) * FONT_HEIGHT * scale;
+    if (editor->cursor.line < 0 || editor->cursor.line >= (int)editor->lines.size)
+        return;
 
-    // Calculate x by summing glyph widths on the current line up to cursor pos
-    int col_start = scroll->x_offset;
+    Line line = editor->lines.lines[editor->cursor.line];
+    int line_start = line.start;
+    int line_length = line.end - line.start;
     int col_end = editor->cursor.pos_in_line;
 
-    // Get pointer to start of the cursor's line
-    int line_count = 0;
-    char *ptr = editor->text.data;
-    while (*ptr && line_count < editor->cursor.line) {
-        if (*ptr == '\n') line_count++;
-        ptr++;
+    // Clamp column to end of line
+    if (col_end > line_length)
+        col_end = line_length;
+
+    int col_start = scroll->x_offset;
+    if (col_start > col_end)
+        col_start = col_end;
+
+    // Start cursor position at the same base X offset as your text rendering
+    float x = LINE_NUMS_OFFSET;
+    float y = 10 + (editor->cursor.line - scroll->y_offset) * FONT_HEIGHT * scale;
+
+    // Sum real glyph widths from col_start to col_end
+    for (int col = col_start; col < col_end; ++col) {
+        char c = editor->text.data[line_start + col];
+
+        if (!glyph_cache[(unsigned char)c])
+            cache_glyph(c, font);
+
+        Glyph *g = glyph_cache[(unsigned char)c];
+        float advance = g ? g->advance * scale : FONT_WIDTH * scale;
+
+        x += advance;
     }
 
-    // Sum glyph widths from col_start to col_end
-    int col = 0;
-    while (*ptr && *ptr != '\n' && col < col_end) {
-        if (col >= col_start) {
-            char c = *ptr;
-            if (!glyph_cache[(unsigned char)c]) {
-                cache_glyph(c, font);
-            }
-            Glyph *g = glyph_cache[(unsigned char)c];
-            if (g) {
-                x += g->advance * scale;
-            } else {
-                x += FONT_WIDTH * scale;
-            }
-        }
-        ptr++;
-        col++;
-    }
-
-    // Draw the cursor line
-    glColor3f(1, 1, 1);
+    // Draw the vertical cursor line
+    glColor3f(1.0f, 1.0f, 1.0f);
     glBegin(GL_LINES);
         glVertex2f(x, y);
         glVertex2f(x, y + FONT_HEIGHT * scale);
     glEnd();
 }
+
+
+
 
 
 void editor_recalculate_cursor_pos(Editor* editor){
