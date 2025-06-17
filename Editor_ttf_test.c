@@ -632,44 +632,59 @@ void editor_recalc_cursor_pos_and_line(Editor* editor){
 
 
 
-void render_text_box(Editor *editor, char *buffer, char* prompt, float scale){
+void render_text_box(Editor *editor, char *buffer, char* prompt){
     int w, h;
     SDL_GetWindowSize(editor->window, &w, &h);
 
-    float scale_prompt = 1.0f;
-    int prompt_width = strlen(prompt) * FONT_WIDTH * scale_prompt;
+    float scale_prompt = 0.5f;
+    float box_padding = 10.0f;
 
     float x = 0;
     float y = h;
     float x1 = x + w;
     float y1 = (90 * h) / 100;
 
+    // Background box
     glColor4f(0.251, 0.251, 0.251, 1.0f);
     glBegin(GL_QUADS);
-    glVertex2f(x, y1); // top left
-    glVertex2f(x1, y1); // top right
-    glVertex2f(x1, y); // bottom right
-    glVertex2f(x, y); // bottom left
+        glVertex2f(x, y1);
+        glVertex2f(x1, y1);
+        glVertex2f(x1, y);
+        glVertex2f(x, y);
     glEnd();
-    // prompt
-    float prompt_x = x + 10;
+
+    // Prompt
+    float prompt_x = x + box_padding;
     float prompt_y = y - 40;
     renderText(prompt, prompt_x, prompt_y, scale_prompt, WHITE);
 
-    // command text
-    float cmd_x = prompt_x + prompt_width;
-    renderText(editor->command_text.data, cmd_x, prompt_y, scale_prompt, WHITE);
+    // Command text (user input)
+    float cmd_x = strlen(prompt) * FONT_WIDTH * scale_prompt - 40;
+    float cmd_y = prompt_y;
+    renderText(editor->command_text.data, cmd_x, cmd_y, scale_prompt, WHITE);
 
-    // cursor
-    int cx = cmd_x + editor->command_cursor.pos_in_text * FONT_WIDTH * scale_prompt;
-    int cy = prompt_y;
+    // Cursor
+    float cursor_x = cmd_x;
+    for (int i = 0; i < editor->command_cursor.pos_in_text; ++i) {
+        char c = editor->command_text.data[i];
+        if (!glyph_cache[(unsigned char)c]) {
+            cache_glyph(c, font);  // Ensure it's cached
+        }
+        Glyph* g = glyph_cache[(unsigned char)c];
+        if (g) {
+            cursor_x += g->advance * scale_prompt;
+        } else {
+            cursor_x += FONT_WIDTH * scale_prompt;  // Fallback spacing
+        }
+    }
 
     glColor3f(1, 1, 1);
     glBegin(GL_LINES);
-    glVertex2f(cx, cy);
-    glVertex2f(cx, cy + (FONT_HEIGHT * scale_prompt));
+        glVertex2f(cursor_x, cmd_y);
+        glVertex2f(cursor_x, cmd_y + (FONT_HEIGHT * scale_prompt));
     glEnd();
 }
+
 
 void render_scrollbar(Editor *editor, float scale) {
     int w, h;
@@ -1262,25 +1277,24 @@ int main(int argc, char *argv[]) {
                                     strung_remove_char(&editor.command_text, editor.command_cursor.pos_in_text - 1);
                                     editor.command_cursor.pos_in_text--;
                                 }
+                            } else if(editor.selection){
+                                
+                                if (editor.selection_end < editor.selection_start) {
+                                    int temp = editor.selection_end;
+                                    editor.selection_end = editor.selection_start;
+                                    editor.selection_start = temp;
+                                }
+                                strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
+                                editor.cursor.pos_in_text = editor.selection_start;
+                                editor.selection = false;
+                                editor.selection_start = 0;
+                                editor.selection_end = 0;
+                                editor_recalc_cursor_pos_and_line(&editor);
                             }
                             else if (editor.cursor.pos_in_text > 0) {
                                     save_undo_state(&editor);
 
-                                if (editor.selection) {
-                                    if (editor.selection_end < editor.selection_start) {
-                                        int temp = editor.selection_end;
-                                        editor.selection_end = editor.selection_start;
-                                        editor.selection_start = temp;
-                                    }
-                                    strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
-                                    editor.cursor.pos_in_text = editor.selection_start;
-                                    editor.selection = false;
-                                    editor.selection_start = 0;
-                                    editor.selection_end = 0;
-                                    editor_recalc_cursor_pos_and_line(&editor);
-                                }
-
-                                else if (editor.text.data[editor.cursor.pos_in_text - 1] == '\n') {
+                                if (editor.text.data[editor.cursor.pos_in_text - 1] == '\n') {
                                     // Move cursor to end of previous line
                                     int pos = editor.cursor.pos_in_text - 2;
                                     int col = 0;
@@ -1674,7 +1688,7 @@ int main(int argc, char *argv[]) {
 
                                     if(editor.in_command){
                                         char buffer[100];
-                                        render_text_box(&editor, buffer, "Enter Command: ", scale);
+                                        render_text_box(&editor, buffer, "Enter Command: ");
                                     }else{
                                         renderCursorScrolled(&editor, scale, &editor.scroll);
                                     }
@@ -1786,7 +1800,7 @@ int main(int argc, char *argv[]) {
         
         if(editor.in_command){
             char buffer[100];
-            render_text_box(&editor, buffer, "Enter Command: ", scale);
+            render_text_box(&editor, buffer, "Enter Command: ");
         }else{
             if(!fb.file_browser) renderCursorScrolled(&editor, scale, &editor.scroll);
         }
