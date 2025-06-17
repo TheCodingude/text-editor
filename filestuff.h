@@ -23,9 +23,8 @@ void organize_directory(File_Browser *fb){
 }
 
 
-void read_entire_dir(File_Browser *fb){
-    
-    if(!(fb->relative_path.size > 0)){
+void read_entire_dir(File_Browser *fb) {
+    if (fb->relative_path.size == 0) {
         fprintf(stderr, "UNREACHABLE: read_entire_dir\n");
         return;
     }
@@ -33,33 +32,36 @@ void read_entire_dir(File_Browser *fb){
     fb->items.count = 0;
 
     DIR *dir = opendir(fb->relative_path.data);
-	if (!dir) {
-		/* Could not open directory */
-		fprintf(stderr, "Cannot open current directory\n");
-		exit(1);
-	}
-    
-
-    FB_item item = {0};
-	struct dirent *ent;
-    struct stat buf;
-	while ((ent = readdir(dir)) != NULL) {
-        item.name = ent->d_name;
-        item.type = ent->d_type;
-        
-        stat(ent->d_name, &buf);
-
-        item.data = buf;
-        
-        FB_items_append(&fb->items, item);
-        
+    if (!dir) {
+        fprintf(stderr, "Cannot open directory: %s\n", fb->relative_path.data);
+        return;
     }
 
+    struct dirent *ent;
+    while ((ent = readdir(dir)) != NULL) {
+
+        FB_item item = {0};
+        item.name = strdup(ent->d_name);  // copy so it's not overwritten
+
+        // Build full path to get stat data
+        char full_path[PATH_MAX];
+        snprintf(full_path, sizeof(full_path), "%s%s", fb->relative_path.data, ent->d_name);
+
+        struct stat st;
+        if (stat(full_path, &st) == 0) {
+            item.data = st;
+            item.type = S_ISDIR(st.st_mode) ? DT_DIR : DT_REG;
+        } else {
+            item.type = DT_UNKNOWN;
+        }
+
+        FB_items_append(&fb->items, item);
+    }
+
+    closedir(dir);
     organize_directory(fb);
-	closedir(dir);
-
-
 }
+
 
 void create_new_file(const char* fp){
     FILE* f = fopen(fp,"w");
