@@ -369,6 +369,29 @@ void renderText(char* text, float x, float y, float scale, Vec4f color) {
     }
 }
 
+float get_line_width(Editor *editor, int index, int col_offset, float scale) {
+    float width = 0;
+    int col = 0;
+
+    // Walk backwards from index to find start of line
+    int start = index;
+    while (start > 0 && editor->text.data[start - 1] != '\n')
+        start--;
+
+    for (int i = 0; i < col_offset; ++i) {
+        char c = editor->text.data[start + i];
+        if (!c || c == '\n') break;
+
+        if (!glyph_cache[(unsigned char)c])
+            cache_glyph(c, font);
+
+        Glyph *g = glyph_cache[(unsigned char)c];
+        width += g ? g->advance * scale : FONT_WIDTH * scale;
+    }
+
+    return width;
+}
+
 
 void render_selection(Editor *editor, float scale, Scroll *scroll) {
     if (!editor->selection || editor->selection_start == editor->selection_end) {
@@ -383,45 +406,58 @@ void render_selection(Editor *editor, float scale, Scroll *scroll) {
         sel_end = tmp;
     }
 
-    int w, h;
-    SDL_GetWindowSize(editor->window, &w, &h);
-    int lines_on_screen = h / (FONT_HEIGHT * scale);
-    int cols_on_screen = w / (FONT_WIDTH * scale);
-
-    // Offset for line nums
     float line_number_offset = LINE_NUMS_OFFSET;
+    int line = 0;
+    float x = line_number_offset;
+    float y = 10;
 
-    int line = 0, col = 0;
-    int i = 0;
-    while (editor->text.data[i]) {
-        if (i >= sel_start && i < sel_end && editor->text.data[i] != '\n') {
-            int draw_line = line - scroll->y_offset;
-            int draw_col = col - scroll->x_offset;
-            if (draw_line >= 0 && draw_line < lines_on_screen &&
-                draw_col >= 0 && draw_col < cols_on_screen) {
+    for (int i = 0; i < sel_end && editor->text.data[i]; ++i) {
+        char c = editor->text.data[i];
 
-                float x = line_number_offset + draw_col * FONT_WIDTH * scale;
-                float y = 10 + draw_line * FONT_HEIGHT * scale;
+        // Update line/column state
+        if (c == '\n') {
+            ++line;
+            x = line_number_offset;
+            y += FONT_HEIGHT * scale;
+            continue;
+        }
+
+        // Skip glyphs above scroll
+        if (line < scroll->y_offset) continue;
+
+        // Skip glyphs to the left of scroll
+        float glyph_x = x;
+        float glyph_y = y;
+
+        if (!glyph_cache[(unsigned char)c])
+            cache_glyph(c, font);
+
+        Glyph *g = glyph_cache[(unsigned char)c];
+        float advance = g ? g->advance * scale : FONT_WIDTH * scale;
+
+        // Only draw selection if this char is within the selected range
+        if (i >= sel_start && i < sel_end) {
+            int visible_line = line - scroll->y_offset;
+            float visible_x = glyph_x - (scroll->x_offset > 0 ? get_line_width(editor, i, scroll->x_offset, scale) : 0);
+
+            if (visible_line >= 0) {
+                float draw_y = 10 + visible_line * FONT_HEIGHT * scale;
                 glColor4f(0.2f, 0.5f, 1.0f, 0.3f); // semi-transparent blue
                 glBegin(GL_QUADS);
-                glVertex2f(x, y);
-                glVertex2f(x + FONT_WIDTH * scale, y);
-                glVertex2f(x + FONT_WIDTH * scale, y + FONT_HEIGHT * scale);
-                glVertex2f(x, y + FONT_HEIGHT * scale);
+                    glVertex2f(visible_x, draw_y);
+                    glVertex2f(visible_x + advance, draw_y);
+                    glVertex2f(visible_x + advance, draw_y + FONT_HEIGHT * scale);
+                    glVertex2f(visible_x, draw_y + FONT_HEIGHT * scale);
                 glEnd();
             }
         }
-        if (editor->text.data[i] == '\n') {
-            line++;
-            col = 0;
-        } else {
-            col++;
-        }
-        i++;
-        if (i >= sel_end) break;
+
+        x += advance;
     }
-    glColor4f(1.0f, 1.0f, 1.0f, 1.0f); // reset color
+
+    glColor4f(1, 1, 1, 1); // reset color
 }
+
 
 
 void editor_move_cursor_to_click(Editor* editor, int x, int y, float scale) {
@@ -1061,10 +1097,11 @@ int main(int argc, char *argv[]) {
                         editor.selection = false;
                     }
                     if (!(SDL_GetModState() & KMOD_CTRL) && !editor.in_command) {
-                            save_undo_state(&editor);
+                        save_undo_state(&editor);
                         strung_insert_string(&editor.text, event.text.text, editor.cursor.pos_in_text);
                         editor.cursor.pos_in_text += strlen(event.text.text);
                         editor.cursor.pos_in_line += strlen(event.text.text);
+                        editor_recalculate_lines(&editor);
                     } else if(editor.in_command){
                         if(!(SDL_GetModState() & KMOD_CTRL)){
                             strung_insert_string(&editor.command_text, event.text.text, editor.command_cursor.pos_in_text);
