@@ -1,4 +1,5 @@
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include <string.h>
@@ -31,8 +32,61 @@
 #define CTRL_HELD (event.key.keysym.mod & KMOD_CTRL)
 #define SHIFT_HELD (event.key.keysym.mod & KMOD_SHIFT)
 
-#define FONT_8X16
-#include "font.h"
+
+typedef struct {
+    GLuint texture;
+    int width, height;
+    int advance;
+    int minx, maxx, miny, maxy;
+} Glyph;
+
+#define GLYPH_CACHE_SIZE 256
+Glyph* glyph_cache[GLYPH_CACHE_SIZE]; // ASCII range for now
+
+
+void cache_glyph(char c, TTF_Font* font) {
+    if (glyph_cache[(int)c]) return;
+
+    Glyph* g = malloc(sizeof(Glyph));
+    if (!g) return;
+
+    char str[2] = {c, '\0'};
+    SDL_Color white = {255, 255, 255, 255};
+
+    SDL_Surface* raw = TTF_RenderText_Blended(font, str, white);
+    if (!raw) {
+        free(g);
+        return;
+    }
+
+    // Convert to RGBA32 to avoid format issues
+    SDL_Surface* surface = SDL_ConvertSurfaceFormat(raw, SDL_PIXELFORMAT_RGBA32, 0);
+    SDL_FreeSurface(raw);
+    if (!surface) {
+        free(g);
+        return;
+    }
+
+    GLuint tex;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surface->w, surface->h,
+                 0, GL_RGBA, GL_UNSIGNED_BYTE, surface->pixels);
+
+    g->texture = tex;
+    g->width = surface->w;
+    g->height = surface->h;
+
+    TTF_GlyphMetrics(font, c, &g->minx, &g->maxx, &g->miny, &g->maxy, &g->advance);
+    glyph_cache[(int)c] = g;
+
+    SDL_FreeSurface(surface);
+}
+
+
 
 typedef struct{
     char* name;
@@ -176,8 +230,204 @@ void editor_recalculate_lines(Editor *editor);
 #include "la.c"
 
 
+
 #define WHITE vec4f(1.0f, 1.0f, 1.0f, 1.0f)
 #define LINE_NUMS_OFFSET (FONT_WIDTH * scale) * 5.0f + 10.0f
+
+GLuint create_texture_from_surface(SDL_Surface* surface) {
+    GLuint texture;
+    GLenum format = surface->format->BytesPerPixel == 4 ? GL_RGBA : GL_RGB;
+
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, format,
+        surface->w, surface->h,
+        0, format, GL_UNSIGNED_BYTE,
+        surface->pixels
+    );
+
+    return texture;
+}
+
+
+// Bitmap renderer
+#if 0
+#define FONT_8X16
+#include "font.h"
+void draw_char(char c, float x, float y, float scale, Vec4f color) {
+    glColor4f(color.x, color.y, color.z, color.w);
+    if (c < 32 || c > 126) return; // Only printable ASCII
+    int idx = c - 32;
+    for (int row = 0; row < FONT_HEIGHT; ++row) {
+        unsigned char bits = font[idx][row];
+        for (int col = 0; col < FONT_WIDTH; ++col) {
+            if (bits & (1 << (7 - col))) {
+                float px = x + col * scale;
+                float py = y + row * scale;
+                glBegin(GL_QUADS);
+                glVertex2f(px, py);
+                glVertex2f(px + scale, py);
+                glVertex2f(px + scale, py + scale);
+                glVertex2f(px, py + scale);
+                glEnd();
+            }
+        }
+    }
+}
+
+void renderTextScrolled(char* text, float x, float y, float scale, Scroll *scroll, Vec4f color) {
+    glColor4f(color.x, color.y, color.z, color.w);
+    int w, h;
+    SDL_GetWindowSize(SDL_GL_GetCurrentWindow(), &w, &h);
+    int lines_on_screen = h / (FONT_HEIGHT * scale);
+    int cols_on_screen = w / (FONT_WIDTH * scale);
+
+    int line = 0, col = 0;
+    float orig_x = x;
+    float draw_y = y;
+    float draw_x = x;
+    for (int i = 0; text[i]; ++i) {
+        if (line >= scroll->y_offset && line < scroll->y_offset + lines_on_screen) {
+            if (col >= scroll->x_offset && col < scroll->x_offset + cols_on_screen) {
+                if((text[i] == 'i' && text[i+1] == 'n' && text[i+2] == 't') || 
+                   (text[i] == 'n' && text[i+1] == 't' && text[i-1] == 'i') ||
+                   (text[i] == 't' && text[i-1] == 'n' && text[i-2] == 'i')     // yes, i know this is stupid. Im just messing around
+                  ){
+                    draw_char(text[i], draw_x + (col - scroll->x_offset) * FONT_WIDTH * scale, draw_y + (line - scroll->y_offset) * FONT_HEIGHT * scale, scale, vec4f(0.905f, 0.929f, 0.149f, 1.0f));
+                }else if(text[i] == '/' && text[i+1] == '/'){
+                    while(text[i] != '\n'){
+                        draw_char(text[i], draw_x + (col - scroll->x_offset) * FONT_WIDTH * scale, draw_y + (line - scroll->y_offset) * FONT_HEIGHT * scale, scale, vec4f(0.074f, 0.321f, 0.027f, 1.0f));
+                        col++;
+                        i++;
+                    }
+                }else if (text[i] != '\n') {
+                    draw_char(text[i], draw_x + (col - scroll->x_offset) * FONT_WIDTH * scale, draw_y + (line - scroll->y_offset) * FONT_HEIGHT * scale, scale, WHITE);
+                }
+            }
+        }
+        if (text[i] == '\n') {
+            line++;
+            col = 0;
+        } else {
+            col++;
+        }
+        if (line - scroll->y_offset > lines_on_screen) break; // safety
+    }
+}
+void renderText(char* text, float x, float y, float scale, Vec4f color) {
+    glColor4f(color.x, color.y, color.z, color.w);
+    float orig_x = x;
+    for (int i = 0; text[i]; ++i) {
+        if (text[i] == '\n') {
+            y += FONT_HEIGHT * scale;
+            x = orig_x;
+        } else {
+            draw_char(text[i], x, y, scale, color);
+            x += FONT_WIDTH * scale;
+        }
+    }
+}
+
+#else
+#define FONT_WIDTH 36
+#define FONT_HEIGHT 60
+TTF_Font *font; // global font for now
+
+void draw_char(char c, float x, float y, float scale, Vec4f color) {
+    if ((unsigned char)c >= GLYPH_CACHE_SIZE) return;
+    if (!glyph_cache[(int)c]) cache_glyph(c, font);  
+
+
+    Glyph* g = glyph_cache[(int)c];
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, g->texture);
+    glColor4f(color.x, color.y, color.z, color.w);
+
+    float w = g->width * scale;
+    float h = g->height * scale;
+
+    glBegin(GL_QUADS);
+        glTexCoord2f(0, 0); glVertex2f(x, y);
+        glTexCoord2f(1, 0); glVertex2f(x + w, y);
+        glTexCoord2f(1, 1); glVertex2f(x + w, y + h);
+        glTexCoord2f(0, 1); glVertex2f(x, y + h);
+    glEnd();
+
+    glDisable(GL_TEXTURE_2D);
+}
+
+
+
+void renderTextScrolled(char* text, float x, float y, float scale, Scroll* scroll, Vec4f color) {
+    int w, h;
+    SDL_GetWindowSize(SDL_GL_GetCurrentWindow(), &w, &h);
+
+    int line = 0, col = 0;
+    float draw_x = x, draw_y = y;
+
+    for (int i = 0; text[i]; ++i) {
+        if (line >= scroll->y_offset) {
+            float px = draw_x + (col - scroll->x_offset) * scale * FONT_WIDTH;
+            float py = draw_y + (line - scroll->y_offset) * scale * FONT_HEIGHT;
+
+            // Highlighting
+            if ((text[i] == 'i' && text[i+1] == 'n' && text[i+2] == 't') ||
+                (text[i] == 'n' && text[i+1] == 't' && text[i-1] == 'i') ||
+                (text[i] == 't' && text[i-1] == 'n' && text[i-2] == 'i')) {
+                draw_char(text[i], px, py, scale, vec4f(0.905f, 0.929f, 0.149f, 1.0f));
+            } else if (text[i] == '/' && text[i+1] == '/') {
+                while (text[i] && text[i] != '\n') {
+                    float cpx = draw_x + (col - scroll->x_offset) * scale * FONT_WIDTH;
+                    float cpy = draw_y + (line - scroll->y_offset) * scale * FONT_HEIGHT;
+                    draw_char(text[i], cpx, cpy, scale, vec4f(0.074f, 0.321f, 0.027f, 1.0f));
+                    i++; col++;
+                }
+                continue;
+            } else if (text[i] != '\n') {
+                draw_char(text[i], px, py, scale, color);
+            }
+        }
+
+        if (text[i] == '\n') {
+            line++;
+            col = 0;
+        } else {
+            col++;
+        }
+    }
+}
+void renderText(char* text, float x, float y, float scale, Vec4f color) {
+    float orig_x = x;
+
+    for (int i = 0; text[i]; ++i) {
+        if (text[i] == '\n') {
+            // Advance to next line
+            y += TTF_FontHeight(font) * scale;
+            x = orig_x;
+        } else {
+            // Draw each character using TTF
+            draw_char(text[i], x, y, scale, color);
+
+            // Advance x by character width
+            int minx, maxx, miny, maxy, advance;
+            if (TTF_GlyphMetrics(font, text[i], &minx, &maxx, &miny, &maxy, &advance) == 0) {
+                x += advance * scale;
+            } else {
+                x += TTF_FontHeight(font) * 0.5f * scale;  // Fallback spacing
+            }
+        }
+    }
+}
+
+#endif
 
 void render_selection(Editor *editor, float scale, Scroll *scroll) {
     if (!editor->selection || editor->selection_start == editor->selection_end) {
@@ -240,7 +490,7 @@ void editor_move_cursor_to_click(Editor* editor, int x, int y, float scale) {
     // Adjust for padding and scroll
     int relative_y = y - 10;
     int relative_x = x - (LINE_NUMS_OFFSET); // account for line numbas
-
+    
     int clicked_line = (relative_y / line_height) + editor->scroll.y_offset;
     int clicked_col  = relative_x / char_width;
 
@@ -269,26 +519,14 @@ void editor_move_cursor_to_click(Editor* editor, int x, int y, float scale) {
 
 
 
-void draw_char(char c, float x, float y, float scale, Vec4f color) {
-    glColor4f(color.x, color.y, color.z, color.w);
-    if (c < 32 || c > 126) return; // Only printable ASCII
-    int idx = c - 32;
-    for (int row = 0; row < FONT_HEIGHT; ++row) {
-        unsigned char bits = font[idx][row];
-        for (int col = 0; col < FONT_WIDTH; ++col) {
-            if (bits & (1 << (7 - col))) {
-                float px = x + col * scale;
-                float py = y + row * scale;
-                glBegin(GL_QUADS);
-                glVertex2f(px, py);
-                glVertex2f(px + scale, py);
-                glVertex2f(px + scale, py + scale);
-                glVertex2f(px, py + scale);
-                glEnd();
-            }
-        }
-    }
-}
+
+
+
+
+
+
+
+
 
 void clamp_scroll(Editor *editor, Scroll *scroll, float scale) {
     int w, h;
@@ -332,45 +570,6 @@ void ensure_cursor_visible(Editor *editor, Scroll *scroll, float scale) {
     clamp_scroll(editor, scroll, scale);
 }
 
-void renderTextScrolled(char* text, float x, float y, float scale, Scroll *scroll, Vec4f color) {
-    glColor4f(color.x, color.y, color.z, color.w);
-    int w, h;
-    SDL_GetWindowSize(SDL_GL_GetCurrentWindow(), &w, &h);
-    int lines_on_screen = h / (FONT_HEIGHT * scale);
-    int cols_on_screen = w / (FONT_WIDTH * scale);
-
-    int line = 0, col = 0;
-    float orig_x = x;
-    float draw_y = y;
-    float draw_x = x;
-    for (int i = 0; text[i]; ++i) {
-        if (line >= scroll->y_offset && line < scroll->y_offset + lines_on_screen) {
-            if (col >= scroll->x_offset && col < scroll->x_offset + cols_on_screen) {
-                if((text[i] == 'i' && text[i+1] == 'n' && text[i+2] == 't') || 
-                   (text[i] == 'n' && text[i+1] == 't' && text[i-1] == 'i') ||
-                   (text[i] == 't' && text[i-1] == 'n' && text[i-2] == 'i')     // yes, i know this is stupid. Im just messing around
-                  ){
-                    draw_char(text[i], draw_x + (col - scroll->x_offset) * FONT_WIDTH * scale, draw_y + (line - scroll->y_offset) * FONT_HEIGHT * scale, scale, vec4f(0.905f, 0.929f, 0.149f, 1.0f));
-                }else if(text[i] == '/' && text[i+1] == '/'){
-                    while(text[i] != '\n'){
-                        draw_char(text[i], draw_x + (col - scroll->x_offset) * FONT_WIDTH * scale, draw_y + (line - scroll->y_offset) * FONT_HEIGHT * scale, scale, vec4f(0.074f, 0.321f, 0.027f, 1.0f));
-                        col++;
-                        i++;
-                    }
-                }else if (text[i] != '\n') {
-                    draw_char(text[i], draw_x + (col - scroll->x_offset) * FONT_WIDTH * scale, draw_y + (line - scroll->y_offset) * FONT_HEIGHT * scale, scale, WHITE);
-                }
-            }
-        }
-        if (text[i] == '\n') {
-            line++;
-            col = 0;
-        } else {
-            col++;
-        }
-        if (line - scroll->y_offset > lines_on_screen) break; // safety
-    }
-}
 
 
 void renderCursorScrolled(Editor *editor, float scale, Scroll *scroll) {
@@ -431,59 +630,61 @@ void editor_recalc_cursor_pos_and_line(Editor* editor){
 }
 
 
-void renderText(char* text, float x, float y, float scale, Vec4f color) {
-    glColor4f(color.x, color.y, color.z, color.w);
-    float orig_x = x;
-    for (int i = 0; text[i]; ++i) {
-        if (text[i] == '\n') {
-            y += FONT_HEIGHT * scale;
-            x = orig_x;
-        } else {
-            draw_char(text[i], x, y, scale, color);
-            x += FONT_WIDTH * scale;
-        }
-    }
-}
 
 
-void render_text_box(Editor *editor, char *buffer, char* prompt, float scale){
+void render_text_box(Editor *editor, char *buffer, char* prompt){
     int w, h;
     SDL_GetWindowSize(editor->window, &w, &h);
 
-    float scale_prompt = 2.0f;
-    int prompt_width = strlen(prompt) * FONT_WIDTH * scale_prompt;
+    float scale_prompt = 0.5f;
+    float box_padding = 10.0f;
 
     float x = 0;
     float y = h;
     float x1 = x + w;
     float y1 = (90 * h) / 100;
 
+    // Background box
     glColor4f(0.251, 0.251, 0.251, 1.0f);
     glBegin(GL_QUADS);
-    glVertex2f(x, y1); // top left
-    glVertex2f(x1, y1); // top right
-    glVertex2f(x1, y); // bottom right
-    glVertex2f(x, y); // bottom left
+        glVertex2f(x, y1);
+        glVertex2f(x1, y1);
+        glVertex2f(x1, y);
+        glVertex2f(x, y);
     glEnd();
-    // prompt
-    float prompt_x = x + 10;
+
+    // Prompt
+    float prompt_x = x + box_padding;
     float prompt_y = y - 40;
     renderText(prompt, prompt_x, prompt_y, scale_prompt, WHITE);
 
-    // command text
-    float cmd_x = prompt_x + prompt_width;
-    renderText(editor->command_text.data, cmd_x, prompt_y, scale_prompt, WHITE);
+    // Command text (user input)
+    float cmd_x = strlen(prompt) * FONT_WIDTH * scale_prompt - 40;
+    float cmd_y = prompt_y;
+    renderText(editor->command_text.data, cmd_x, cmd_y, scale_prompt, WHITE);
 
-    // cursor
-    int cx = cmd_x + editor->command_cursor.pos_in_text * FONT_WIDTH * scale_prompt;
-    int cy = prompt_y;
+    // Cursor
+    float cursor_x = cmd_x;
+    for (int i = 0; i < editor->command_cursor.pos_in_text; ++i) {
+        char c = editor->command_text.data[i];
+        if (!glyph_cache[(unsigned char)c]) {
+            cache_glyph(c, font);  // Ensure it's cached
+        }
+        Glyph* g = glyph_cache[(unsigned char)c];
+        if (g) {
+            cursor_x += g->advance * scale_prompt;
+        } else {
+            cursor_x += FONT_WIDTH * scale_prompt;  // Fallback spacing
+        }
+    }
 
     glColor3f(1, 1, 1);
     glBegin(GL_LINES);
-    glVertex2f(cx, cy);
-    glVertex2f(cx, cy + (FONT_HEIGHT * scale_prompt));
+        glVertex2f(cursor_x, cmd_y);
+        glVertex2f(cursor_x, cmd_y + (FONT_HEIGHT * scale_prompt));
     glEnd();
 }
+
 
 void render_scrollbar(Editor *editor, float scale) {
     int w, h;
@@ -789,9 +990,18 @@ int main(int argc, char *argv[]) {
 
     char buffer[PATH_MAX];
     if(!(realpath(".", buffer))) fprintf(stderr, "Failed, A lot (at opening init directory)\n");
-    File_Browser fb = {.relative_path = strung_init(buffer), .scale = 1.5f, .new_file_path = strung_init(""), .copied_file_contents = strung_init_custom("", 1024)};
+    File_Browser fb = {.relative_path = strung_init(buffer), .scale = 0.5f, .new_file_path = strung_init(""), .copied_file_contents = strung_init_custom("", 1024)};
     strung_append_char(&fb.relative_path, '/');
 
+    if(TTF_Init() < 0){
+        fprintf(stderr, "Failed to initilize TTF\n");
+        return 1;
+    }
+
+    font = TTF_OpenFont("MapleMono-Regular.ttf", 48); 
+
+
+    
 
     bool line_switch = false;
 
@@ -826,7 +1036,7 @@ int main(int argc, char *argv[]) {
 
     SDL_StartTextInput();
 
-    float scale = 1.0f;
+    float scale = 0.3f;
 
     SDL_EventState(SDL_DROPFILE, SDL_ENABLE); 
     glEnable(GL_BLEND);
@@ -834,6 +1044,7 @@ int main(int argc, char *argv[]) {
 
     bool running = true;
     while (running) {
+        
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
@@ -1005,10 +1216,10 @@ int main(int argc, char *argv[]) {
                         read_entire_dir(&fb);
                         break;
                     case SDLK_MINUS:
-                        if (event.key.keysym.mod & KMOD_CTRL) fb.scale -= 0.5;
+                        if (event.key.keysym.mod & KMOD_CTRL) fb.scale -= 0.1;
                         break;
                     case SDLK_EQUALS:
-                        if (event.key.keysym.mod & KMOD_CTRL) fb.scale += 0.5;
+                        if (event.key.keysym.mod & KMOD_CTRL) fb.scale += 0.1;
                         break;
                     case SDLK_n:
                         if(event.key.keysym.mod & KMOD_CTRL){
@@ -1066,25 +1277,24 @@ int main(int argc, char *argv[]) {
                                     strung_remove_char(&editor.command_text, editor.command_cursor.pos_in_text - 1);
                                     editor.command_cursor.pos_in_text--;
                                 }
+                            } else if(editor.selection){
+                                
+                                if (editor.selection_end < editor.selection_start) {
+                                    int temp = editor.selection_end;
+                                    editor.selection_end = editor.selection_start;
+                                    editor.selection_start = temp;
+                                }
+                                strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
+                                editor.cursor.pos_in_text = editor.selection_start;
+                                editor.selection = false;
+                                editor.selection_start = 0;
+                                editor.selection_end = 0;
+                                editor_recalc_cursor_pos_and_line(&editor);
                             }
                             else if (editor.cursor.pos_in_text > 0) {
                                     save_undo_state(&editor);
 
-                                if (editor.selection) {
-                                    if (editor.selection_end < editor.selection_start) {
-                                        int temp = editor.selection_end;
-                                        editor.selection_end = editor.selection_start;
-                                        editor.selection_start = temp;
-                                    }
-                                    strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
-                                    editor.cursor.pos_in_text = editor.selection_start;
-                                    editor.selection = false;
-                                    editor.selection_start = 0;
-                                    editor.selection_end = 0;
-                                    editor_recalc_cursor_pos_and_line(&editor);
-                                }
-
-                                else if (editor.text.data[editor.cursor.pos_in_text - 1] == '\n') {
+                                if (editor.text.data[editor.cursor.pos_in_text - 1] == '\n') {
                                     // Move cursor to end of previous line
                                     int pos = editor.cursor.pos_in_text - 2;
                                     int col = 0;
@@ -1478,7 +1688,7 @@ int main(int argc, char *argv[]) {
 
                                     if(editor.in_command){
                                         char buffer[100];
-                                        render_text_box(&editor, buffer, "Enter Command: ", scale);
+                                        render_text_box(&editor, buffer, "Enter Command: ");
                                     }else{
                                         renderCursorScrolled(&editor, scale, &editor.scroll);
                                     }
@@ -1590,7 +1800,7 @@ int main(int argc, char *argv[]) {
         
         if(editor.in_command){
             char buffer[100];
-            render_text_box(&editor, buffer, "Enter Command: ", scale);
+            render_text_box(&editor, buffer, "Enter Command: ");
         }else{
             if(!fb.file_browser) renderCursorScrolled(&editor, scale, &editor.scroll);
         }
@@ -1607,6 +1817,14 @@ int main(int argc, char *argv[]) {
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(editor.window);
     SDL_Quit();
+
+    for (int i = 0; i < GLYPH_CACHE_SIZE; ++i) {
+    if (glyph_cache[i]) {
+        glDeleteTextures(1, &glyph_cache[i]->texture);
+        free(glyph_cache[i]);
+    }
+    }
+
 
     return 0;
 }
