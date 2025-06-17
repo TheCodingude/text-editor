@@ -366,44 +366,56 @@ void draw_char(char c, float x, float y, float scale, Vec4f color) {
 
 
 
-void renderTextScrolled(char* text, float x, float y, float scale, Scroll* scroll, Vec4f color) {
+void renderTextScrolled(Editor* editor, float x, float y, float scale, Vec4f color) {
     int w, h;
-    SDL_GetWindowSize(SDL_GL_GetCurrentWindow(), &w, &h);
+    SDL_GetWindowSize(editor->window, &w, &h); // assuming `editor` is global; otherwise pass it in
 
-    int line = 0, col = 0;
-    float draw_x = x, draw_y = y;
+    int line_height = FONT_HEIGHT * scale;
+    int max_lines = h / line_height;
 
-    for (int i = 0; text[i]; ++i) {
-        if (line >= scroll->y_offset) {
-            float px = draw_x + (col - scroll->x_offset) * scale * FONT_WIDTH;
-            float py = draw_y + (line - scroll->y_offset) * scale * FONT_HEIGHT;
+    int scroll_offset = editor->scroll.y_offset;
 
-            // Highlighting
-            if ((text[i] == 'i' && text[i+1] == 'n' && text[i+2] == 't') ||
-                (text[i] == 'n' && text[i+1] == 't' && text[i-1] == 'i') ||
-                (text[i] == 't' && text[i-1] == 'n' && text[i-2] == 'i')) {
-                draw_char(text[i], px, py, scale, vec4f(0.905f, 0.929f, 0.149f, 1.0f));
-            } else if (text[i] == '/' && text[i+1] == '/') {
-                while (text[i] && text[i] != '\n') {
-                    float cpx = draw_x + (col - scroll->x_offset) * scale * FONT_WIDTH;
-                    float cpy = draw_y + (line - scroll->y_offset) * scale * FONT_HEIGHT;
-                    draw_char(text[i], cpx, cpy, scale, vec4f(0.074f, 0.321f, 0.027f, 1.0f));
-                    i++; col++;
-                }
-                continue;
-            } else if (text[i] != '\n') {
-                draw_char(text[i], px, py, scale, color);
+    int current_line = 0;
+    int cursor_x = x;
+    int cursor_y = y;
+
+    const char* ptr = editor->text.data;
+    int line_number = 0;
+
+    // Skip lines before scroll offset
+    while (line_number < scroll_offset && *ptr != '\0') {
+        if (*ptr == '\n') {
+            ++line_number;
+        }
+        ++ptr;
+    }
+
+    // Render only visible lines
+    while (*ptr != '\0' && current_line < max_lines) {
+        char c = *ptr;
+
+        if (c == '\n') {
+            cursor_y += line_height;
+            cursor_x = x;
+            ++current_line;
+        } else {
+            if (!glyph_cache[(unsigned char)c]) {
+                cache_glyph(c, font);
+            }
+
+            Glyph* g = glyph_cache[(unsigned char)c];
+            if (g) {
+                draw_char(c, cursor_x, cursor_y, scale, color);
+                cursor_x += g->advance * scale;
+            } else {
+                cursor_x += FONT_WIDTH * scale;
             }
         }
 
-        if (text[i] == '\n') {
-            line++;
-            col = 0;
-        } else {
-            col++;
-        }
+        ++ptr;
     }
 }
+
 void renderText(char* text, float x, float y, float scale, Vec4f color) {
     float orig_x = x;
 
@@ -517,17 +529,6 @@ void editor_move_cursor_to_click(Editor* editor, int x, int y, float scale) {
     editor->cursor.pos_in_line = clicked_col;
 }
 
-
-
-
-
-
-
-
-
-
-
-
 void clamp_scroll(Editor *editor, Scroll *scroll, float scale) {
     int w, h;
     SDL_GetWindowSize(editor->window, &w, &h);
@@ -573,16 +574,49 @@ void ensure_cursor_visible(Editor *editor, Scroll *scroll, float scale) {
 
 
 void renderCursorScrolled(Editor *editor, float scale, Scroll *scroll) {
-    // Offset for line numbers: 5 columns worth of width
     float line_number_offset = LINE_NUMS_OFFSET;
-    float x = line_number_offset + (editor->cursor.pos_in_line - scroll->x_offset) * FONT_WIDTH * scale;
+    float x = line_number_offset;
     float y = 10 + (editor->cursor.line - scroll->y_offset) * FONT_HEIGHT * scale;
+
+    // Calculate x by summing glyph widths on the current line up to cursor pos
+    int col_start = scroll->x_offset;
+    int col_end = editor->cursor.pos_in_line;
+
+    // Get pointer to start of the cursor's line
+    int line_count = 0;
+    char *ptr = editor->text.data;
+    while (*ptr && line_count < editor->cursor.line) {
+        if (*ptr == '\n') line_count++;
+        ptr++;
+    }
+
+    // Sum glyph widths from col_start to col_end
+    int col = 0;
+    while (*ptr && *ptr != '\n' && col < col_end) {
+        if (col >= col_start) {
+            char c = *ptr;
+            if (!glyph_cache[(unsigned char)c]) {
+                cache_glyph(c, font);
+            }
+            Glyph *g = glyph_cache[(unsigned char)c];
+            if (g) {
+                x += g->advance * scale;
+            } else {
+                x += FONT_WIDTH * scale;
+            }
+        }
+        ptr++;
+        col++;
+    }
+
+    // Draw the cursor line
     glColor3f(1, 1, 1);
     glBegin(GL_LINES);
-    glVertex2f(x, y);
-    glVertex2f(x, y + (FONT_HEIGHT * scale));
+        glVertex2f(x, y);
+        glVertex2f(x, y + FONT_HEIGHT * scale);
     glEnd();
 }
+
 
 void editor_recalculate_cursor_pos(Editor* editor){
     int target_line = editor->cursor.line;
@@ -1682,7 +1716,7 @@ int main(int argc, char *argv[]) {
                                     glMatrixMode(GL_MODELVIEW);
                                     glLoadIdentity();
 
-                                    renderTextScrolled(editor.text.data, (FONT_WIDTH * scale) * 3 + 10.0f, 10.0f, scale, &editor.scroll, WHITE);
+                                    renderTextScrolled(&editor, (FONT_WIDTH * scale) * 3 + 10.0f, 10.0f, scale, WHITE);
                                     render_scrollbar(&editor, scale);
                                     render_line_numbers(&editor, scale);
 
@@ -1792,7 +1826,7 @@ int main(int argc, char *argv[]) {
             render_file_browser(&editor, &fb);
         }
         else {
-            renderTextScrolled(editor.text.data, LINE_NUMS_OFFSET, 10.0f, scale, &editor.scroll, WHITE);
+            renderTextScrolled(&editor, LINE_NUMS_OFFSET, 10.0f, scale, WHITE);
             render_scrollbar(&editor, scale);
             render_line_numbers(&editor, scale);
             render_selection(&editor, scale, &editor.scroll);
