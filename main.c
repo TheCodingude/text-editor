@@ -254,86 +254,6 @@ GLuint create_texture_from_surface(SDL_Surface* surface) {
     return texture;
 }
 
-
-// Bitmap renderer
-#if 0
-#define FONT_8X16
-#include "font.h"
-void draw_char(char c, float x, float y, float scale, Vec4f color) {
-    glColor4f(color.x, color.y, color.z, color.w);
-    if (c < 32 || c > 126) return; // Only printable ASCII
-    int idx = c - 32;
-    for (int row = 0; row < FONT_HEIGHT; ++row) {
-        unsigned char bits = font[idx][row];
-        for (int col = 0; col < FONT_WIDTH; ++col) {
-            if (bits & (1 << (7 - col))) {
-                float px = x + col * scale;
-                float py = y + row * scale;
-                glBegin(GL_QUADS);
-                glVertex2f(px, py);
-                glVertex2f(px + scale, py);
-                glVertex2f(px + scale, py + scale);
-                glVertex2f(px, py + scale);
-                glEnd();
-            }
-        }
-    }
-}
-
-void renderTextScrolled(char* text, float x, float y, float scale, Scroll *scroll, Vec4f color) {
-    glColor4f(color.x, color.y, color.z, color.w);
-    int w, h;
-    SDL_GetWindowSize(SDL_GL_GetCurrentWindow(), &w, &h);
-    int lines_on_screen = h / (FONT_HEIGHT * scale);
-    int cols_on_screen = w / (FONT_WIDTH * scale);
-
-    int line = 0, col = 0;
-    float orig_x = x;
-    float draw_y = y;
-    float draw_x = x;
-    for (int i = 0; text[i]; ++i) {
-        if (line >= scroll->y_offset && line < scroll->y_offset + lines_on_screen) {
-            if (col >= scroll->x_offset && col < scroll->x_offset + cols_on_screen) {
-                if((text[i] == 'i' && text[i+1] == 'n' && text[i+2] == 't') || 
-                   (text[i] == 'n' && text[i+1] == 't' && text[i-1] == 'i') ||
-                   (text[i] == 't' && text[i-1] == 'n' && text[i-2] == 'i')     // yes, i know this is stupid. Im just messing around
-                  ){
-                    draw_char(text[i], draw_x + (col - scroll->x_offset) * FONT_WIDTH * scale, draw_y + (line - scroll->y_offset) * FONT_HEIGHT * scale, scale, vec4f(0.905f, 0.929f, 0.149f, 1.0f));
-                }else if(text[i] == '/' && text[i+1] == '/'){
-                    while(text[i] != '\n'){
-                        draw_char(text[i], draw_x + (col - scroll->x_offset) * FONT_WIDTH * scale, draw_y + (line - scroll->y_offset) * FONT_HEIGHT * scale, scale, vec4f(0.074f, 0.321f, 0.027f, 1.0f));
-                        col++;
-                        i++;
-                    }
-                }else if (text[i] != '\n') {
-                    draw_char(text[i], draw_x + (col - scroll->x_offset) * FONT_WIDTH * scale, draw_y + (line - scroll->y_offset) * FONT_HEIGHT * scale, scale, WHITE);
-                }
-            }
-        }
-        if (text[i] == '\n') {
-            line++;
-            col = 0;
-        } else {
-            col++;
-        }
-        if (line - scroll->y_offset > lines_on_screen) break; // safety
-    }
-}
-void renderText(char* text, float x, float y, float scale, Vec4f color) {
-    glColor4f(color.x, color.y, color.z, color.w);
-    float orig_x = x;
-    for (int i = 0; text[i]; ++i) {
-        if (text[i] == '\n') {
-            y += FONT_HEIGHT * scale;
-            x = orig_x;
-        } else {
-            draw_char(text[i], x, y, scale, color);
-            x += FONT_WIDTH * scale;
-        }
-    }
-}
-
-#else
 #define FONT_WIDTH 36
 #define FONT_HEIGHT 60
 TTF_Font *font; // global font for now
@@ -439,7 +359,6 @@ void renderText(char* text, float x, float y, float scale, Vec4f color) {
     }
 }
 
-#endif
 
 void render_selection(Editor *editor, float scale, Scroll *scroll) {
     if (!editor->selection || editor->selection_start == editor->selection_end) {
