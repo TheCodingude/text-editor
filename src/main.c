@@ -1020,7 +1020,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    font = TTF_OpenFont("MapleMono-Regular.ttf", 48); 
+    font = TTF_OpenFont("./MapleMono-Regular.ttf", 48); 
 
 
     
