@@ -1,0 +1,3 @@
+The editor with the old rendering is no longer gonna be supported, i may at the bitmap rendering back to the main editor at some
+point because i think it looks kinda good but old_rendering.c with not be getting any new features and won't be getting bug fixes.
+i am fully focused on improving the editor with the TrueType font rendering  
