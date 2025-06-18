@@ -203,7 +203,7 @@ typedef struct{
 
 typedef struct{
     SDL_Window *window;
-    
+    float scale;
 
     Scroll scroll;
     Cursor cursor;
@@ -216,23 +216,22 @@ typedef struct{
     int selection_end;
     bool selection;
 
-    Cursor command_cursor;
-    bool in_command;
-    Strung command_text;
-
     Stack undo_stack;
     Stack redo_stack;
 }Editor;
 
 void editor_recalculate_lines(Editor *editor);
+void ensure_cursor_visible(Editor *editor);
 
 #include "filestuff.h"
 #include "la.c"
-
+#include "command_box.c"
 
 
 #define WHITE vec4f(1.0f, 1.0f, 1.0f, 1.0f)
-#define LINE_NUMS_OFFSET (FONT_WIDTH * scale) * 5.0f + 10.0f
+#define LINE_NUMS_OFFSET (FONT_WIDTH * editor.scale) * 5.0f + 10.0f
+#define LINE_NUMS_OFFSETP (FONT_WIDTH * editor->scale) * 5.0f + 10.0f // WHY CAN'T THIS DAMN LANGAUGE JUST AUTO DE-REFERENCE
+
 
 GLuint create_texture_from_surface(SDL_Surface* surface) {
     GLuint texture;
@@ -296,7 +295,7 @@ void renderTextScrolled(Editor* editor, float x, float y, float scale, Vec4f col
     int scroll_y = editor->scroll.y_offset;
     int scroll_x = editor->scroll.x_offset;
 
-    float base_x = LINE_NUMS_OFFSET;  // Matches renderCursorScrolled
+    float base_x = LINE_NUMS_OFFSETP;  // Matches renderCursorScrolled
     float draw_y = y;
 
     int current_line = 0;
@@ -406,7 +405,7 @@ void render_selection(Editor *editor, float scale, Scroll *scroll) {
         sel_end = tmp;
     }
 
-    float line_number_offset = LINE_NUMS_OFFSET;
+    float line_number_offset = LINE_NUMS_OFFSETP;
     int line = 0;
     float x = line_number_offset;
     float y = 10;
@@ -473,7 +472,7 @@ void editor_move_cursor_to_click(Editor* editor, int x, int y, float scale) {
     int line_length = line.end - line.start;
     const char* line_ptr = &editor->text.data[line.start];
 
-    float relative_x = x - LINE_NUMS_OFFSET;
+    float relative_x = x - LINE_NUMS_OFFSETP;
     if (relative_x < 0) {
         editor->cursor.pos_in_text = line.start;
         editor->cursor.pos_in_line = 0;
@@ -539,11 +538,13 @@ void clamp_scroll(Editor *editor, Scroll *scroll, float scale) {
     if (scroll->x_offset < 0) scroll->x_offset = 0;
 }
 
-void ensure_cursor_visible(Editor *editor, Scroll *scroll, float scale) {
+void ensure_cursor_visible(Editor *editor) {
+
+    Scroll *scroll = &editor->scroll;
     int w, h;
     SDL_GetWindowSize(editor->window, &w, &h);
-    int lines_on_screen = h / (FONT_HEIGHT * scale);
-    int cols_on_screen = w / (FONT_WIDTH * scale);
+    int lines_on_screen = h / (FONT_HEIGHT * editor->scale);
+    int cols_on_screen = w / (FONT_WIDTH * editor->scale);
 
     if (editor->cursor.line < scroll->y_offset)
         scroll->y_offset = editor->cursor.line;
@@ -555,7 +556,7 @@ void ensure_cursor_visible(Editor *editor, Scroll *scroll, float scale) {
     if (editor->cursor.pos_in_line >= scroll->x_offset + cols_on_screen)
         scroll->x_offset = editor->cursor.pos_in_line - cols_on_screen + 1;
 
-    clamp_scroll(editor, scroll, scale);
+    clamp_scroll(editor, scroll, editor->scale);
 }
 
 
@@ -578,7 +579,7 @@ void renderCursorScrolled(Editor *editor, float scale, Scroll *scroll) {
         col_start = col_end;
 
     // Start cursor position at the same base X offset as your text rendering
-    float x = LINE_NUMS_OFFSET;
+    float x = LINE_NUMS_OFFSETP;
     float y = 10 + (editor->cursor.line - scroll->y_offset) * FONT_HEIGHT * scale;
 
     // Sum real glyph widths from col_start to col_end
@@ -654,7 +655,7 @@ void editor_recalc_cursor_pos_and_line(Editor* editor){
 
 
 
-void render_text_box(Editor *editor, char *buffer, char* prompt){
+void render_text_box(Editor *editor, Command_Box *cmd_box, char *buffer, char* prompt){
     int w, h;
     SDL_GetWindowSize(editor->window, &w, &h);
 
@@ -683,12 +684,12 @@ void render_text_box(Editor *editor, char *buffer, char* prompt){
     // Command text (user input)
     float cmd_x = strlen(prompt) * FONT_WIDTH * scale_prompt - 40;
     float cmd_y = prompt_y;
-    renderText(editor->command_text.data, cmd_x, cmd_y, scale_prompt, WHITE);
+    renderText(cmd_box->command_text.data, cmd_x, cmd_y, scale_prompt, WHITE);
 
     // Cursor
     float cursor_x = cmd_x;
-    for (int i = 0; i < editor->command_cursor.pos_in_text; ++i) {
-        char c = editor->command_text.data[i];
+    for (int i = 0; i < cmd_box->command_cursor.pos_in_text; ++i) {
+        char c = cmd_box->command_text.data[i];
         if (!glyph_cache[(unsigned char)c]) {
             cache_glyph(c, font);  // Ensure it's cached
         }
@@ -1004,10 +1005,9 @@ void redo(Editor* editor) {
 int main(int argc, char *argv[]) {
     Editor editor = {.cursor = {0}, 
                     .file_path = "", 
-                    .text = strung_init(""), 
-                    .command_text = strung_init(""), 
-                    .command_cursor = {0},
-                    .lines = {0}    
+                    .text = strung_init(""),  
+                    .lines = {0},
+                    .scale = 0.3f
     };
 
     char buffer[PATH_MAX];
@@ -1021,9 +1021,10 @@ int main(int argc, char *argv[]) {
     }
 
     font = TTF_OpenFont("./MapleMono-Regular.ttf", 48); 
+    // i dont like the way that '#' look in this font so it WILL be changed later
+    // TODO: Have different fonts that are loadable with the application is open
 
-
-    
+    Command_Box cmd_box = {.command_text = strung_init("")};
 
     bool line_switch = false;
 
@@ -1058,7 +1059,6 @@ int main(int argc, char *argv[]) {
 
     SDL_StartTextInput();
 
-    float scale = 0.3f;
 
     SDL_EventState(SDL_DROPFILE, SDL_ENABLE); 
     glEnable(GL_BLEND);
@@ -1089,6 +1089,9 @@ int main(int argc, char *argv[]) {
                     }
                 } else {
                     if(editor.selection){
+                        if (editor.selection_start > editor.selection_end){
+                            SEL_SWAP(editor.selection_start, editor.selection_end);
+                        }
                         strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
                         editor.cursor.pos_in_line -= editor.selection_end - editor.selection_start;
                         editor.cursor.pos_in_text -= editor.selection_end - editor.selection_start;
@@ -1096,16 +1099,16 @@ int main(int argc, char *argv[]) {
                         editor.selection_end = 0;
                         editor.selection = false;
                     }
-                    if (!(SDL_GetModState() & KMOD_CTRL) && !editor.in_command) {
+                    if (!(SDL_GetModState() & KMOD_CTRL) && !cmd_box.in_command) {
                         save_undo_state(&editor);
                         strung_insert_string(&editor.text, event.text.text, editor.cursor.pos_in_text);
                         editor.cursor.pos_in_text += strlen(event.text.text);
                         editor.cursor.pos_in_line += strlen(event.text.text);
                         editor_recalculate_lines(&editor);
-                    } else if(editor.in_command){
+                    } else if(cmd_box.in_command){
                         if(!(SDL_GetModState() & KMOD_CTRL)){
-                            strung_insert_string(&editor.command_text, event.text.text, editor.command_cursor.pos_in_text);
-                            editor.command_cursor.pos_in_text += strlen(event.text.text);
+                            strung_insert_string(&cmd_box.command_text, event.text.text, cmd_box.command_cursor.pos_in_text);
+                            cmd_box.command_cursor.pos_in_text += strlen(event.text.text);
                         }
                     }
                 }
@@ -1130,7 +1133,10 @@ int main(int argc, char *argv[]) {
                         else{strung_remove_char(&fb.search_buffer, fb.search_buffer.size-1);};
                         break;
                     case SDLK_RETURN:
-                        if(fb.new_file){
+                        if(cmd_box.in_command){ // idk the order i should focus these 
+                            cmdbox_command(&editor, &cmd_box);
+                        }
+                        else if(fb.new_file){
                             if(fb.new_file_path.size > 0){
                                 Strung final = strung_init("");
                                 strung_append(&final, fb.relative_path.data);
@@ -1170,7 +1176,7 @@ int main(int argc, char *argv[]) {
                                     fprintf(stderr, "Failed to get full file path of %s\n", selected);
                                 } else {
                                     open_file(&editor, resolved);
-                                    ensure_cursor_visible(&editor, &editor.scroll, scale);
+                                    ensure_cursor_visible(&editor);
                                     fb.file_browser = false;
                                 }
                             } else if (fb.items.items[fb.cursor].type == DT_DIR) {
@@ -1295,10 +1301,10 @@ int main(int argc, char *argv[]) {
                 else {
                     switch (event.key.keysym.sym) {
                         case SDLK_BACKSPACE:
-                            if (editor.in_command){
-                                if(editor.command_cursor.pos_in_text > 0){
-                                    strung_remove_char(&editor.command_text, editor.command_cursor.pos_in_text - 1);
-                                    editor.command_cursor.pos_in_text--;
+                            if (cmd_box.in_command){
+                                if(cmd_box.command_cursor.pos_in_text > 0){
+                                    strung_remove_char(&cmd_box.command_text, cmd_box.command_cursor.pos_in_text - 1);
+                                    cmd_box.command_cursor.pos_in_text--;
                                 }
                             } else if(editor.selection){
                                 
@@ -1338,9 +1344,9 @@ int main(int argc, char *argv[]) {
                             }
                             break;
                         case SDLK_DELETE:
-                            if (editor.in_command) {
-                                if (editor.command_cursor.pos_in_text < editor.command_text.size) {
-                                    strung_remove_char(&editor.command_text, editor.command_cursor.pos_in_text);
+                            if (cmd_box.in_command) {
+                                if (cmd_box.command_cursor.pos_in_text < cmd_box.command_text.size) {
+                                    strung_remove_char(&cmd_box.command_text, cmd_box.command_cursor.pos_in_text);
                                 }
                             } else if (editor.cursor.pos_in_text < editor.text.size) {
                                 save_undo_state(&editor);
@@ -1349,12 +1355,16 @@ int main(int argc, char *argv[]) {
                             }
                             break;
                         case SDLK_RETURN:
-                            save_undo_state(&editor);
-                            strung_insert_char(&editor.text, '\n', editor.cursor.pos_in_text);
-                            editor.cursor.pos_in_text++;
-                            editor.cursor.line++;
-                            editor.cursor.pos_in_line = 0;
-                            editor_recalculate_lines(&editor);
+                            if(cmd_box.in_command){ 
+                                cmdbox_command(&editor, &cmd_box);
+                            }else{
+                                save_undo_state(&editor);
+                                strung_insert_char(&editor.text, '\n', editor.cursor.pos_in_text);
+                                editor.cursor.pos_in_text++;
+                                editor.cursor.line++;
+                                editor.cursor.pos_in_line = 0;
+                                editor_recalculate_lines(&editor);
+                            }
                             break;
                         case SDLK_TAB:
                             save_undo_state(&editor);
@@ -1381,14 +1391,15 @@ int main(int argc, char *argv[]) {
                             strung_reset(&fb.search_buffer);
                             break;
                         case SDLK_F3:
-                            strung_reset(&editor.command_text);
-                            editor.command_cursor.pos_in_text = 0;
-                            editor.in_command = !editor.in_command;
+                            strung_reset(&cmd_box.command_text);
+                            cmd_box.command_cursor.pos_in_text = 0;
+                            cmd_box.in_command = !cmd_box.in_command;
+                            cmd_box.type = CMD_NONE;
                             break;
                         case SDLK_LEFT:
-                            if (editor.in_command) {
-                                if (editor.command_cursor.pos_in_text > 0) {
-                                    editor.command_cursor.pos_in_text--;
+                            if (cmd_box.in_command) {
+                                if (cmd_box.command_cursor.pos_in_text > 0) {
+                                    cmd_box.command_cursor.pos_in_text--;
                                 }
                             } else {
                                 bool shift = (event.key.keysym.mod & KMOD_SHIFT);
@@ -1421,7 +1432,7 @@ int main(int argc, char *argv[]) {
                                         editor.cursor.pos_in_text = pos;
                                         // Recalculate line and col
                                         editor_recalc_cursor_pos_and_line(&editor);
-                                        ensure_cursor_visible(&editor, &editor.scroll, scale);
+                                       ensure_cursor_visible(&editor);
                                     }
                                 } else {
                                     // If at start of line, move to end of previous line
@@ -1441,13 +1452,13 @@ int main(int argc, char *argv[]) {
                                     } else if (editor.text.data[editor.cursor.pos_in_text-1] == '\n') {
                                         editor.cursor.line--;
                                         editor_recalculate_cursor_pos(&editor);
-                                        ensure_cursor_visible(&editor, &editor.scroll, scale);
+                                       ensure_cursor_visible(&editor);
                                     } else if (editor.cursor.pos_in_text > 0) {
                                         editor.cursor.pos_in_text--;
                                         if (editor.cursor.pos_in_line > 0) {
                                             editor.cursor.pos_in_line--;
                                         }
-                                        ensure_cursor_visible(&editor, &editor.scroll, scale);
+                                       ensure_cursor_visible(&editor);
                                     }
                                 }
                                 if (shift) {
@@ -1456,9 +1467,9 @@ int main(int argc, char *argv[]) {
                             }
                             break;
                         case SDLK_RIGHT:
-                            if (editor.in_command) {
-                                if (editor.command_cursor.pos_in_text < editor.command_text.size) {
-                                    editor.command_cursor.pos_in_text++;
+                            if (cmd_box.in_command) {
+                                if (cmd_box.command_cursor.pos_in_text < cmd_box.command_text.size) {
+                                    cmd_box.command_cursor.pos_in_text++;
                                 }
                             } else {
                                 bool shift = (event.key.keysym.mod & KMOD_SHIFT);
@@ -1485,17 +1496,17 @@ int main(int argc, char *argv[]) {
                                     }
                                     editor.cursor.pos_in_text = pos;
                                     editor_recalc_cursor_pos_and_line(&editor);
-                                    ensure_cursor_visible(&editor, &editor.scroll, scale);
+                                    ensure_cursor_visible(&editor);
                                 } else {
                                     if (editor.text.data[editor.cursor.pos_in_text] == '\n') {
                                         editor.cursor.pos_in_line = 0;
                                         editor.cursor.line++;
                                         editor.cursor.pos_in_text++;
-                                        ensure_cursor_visible(&editor, &editor.scroll, scale);
+                                        ensure_cursor_visible(&editor);
                                     } else if (editor.cursor.pos_in_text < editor.text.size) {
                                         editor.cursor.pos_in_text++;
                                         editor.cursor.pos_in_line++;
-                                        ensure_cursor_visible(&editor, &editor.scroll, scale);
+                                        ensure_cursor_visible(&editor);
                                     }
                                 }
                                 if (shift) {
@@ -1522,7 +1533,7 @@ int main(int argc, char *argv[]) {
                                     editor.selection_end = editor.cursor.pos_in_text;
                                 }
                             }
-                            ensure_cursor_visible(&editor, &editor.scroll, scale);
+                            ensure_cursor_visible(&editor);
                             break;
                         case SDLK_DOWN:
 
@@ -1543,21 +1554,21 @@ int main(int argc, char *argv[]) {
                                 editor.selection_end = editor.cursor.pos_in_text;
                             }
 
-                            ensure_cursor_visible(&editor, &editor.scroll, scale);
+                            ensure_cursor_visible(&editor);
                             break;
                         case SDLK_ESCAPE:
                             running = 0;
                             break;
                         case SDLK_EQUALS:
                             if(event.key.keysym.mod & KMOD_CTRL){
-                                if(event.key.keysym.mod & KMOD_ALT) scale = 2.0f;
-                                else scale += 0.5;
+                                if(event.key.keysym.mod & KMOD_ALT)editor.scale = 0.3f;
+                                else editor.scale += 0.1;
                             }
                             break;
                         case SDLK_MINUS:
                             if(event.key.keysym.mod & KMOD_CTRL){  
-                                if(event.key.keysym.mod & KMOD_ALT) scale = 2.0f;
-                                else scale -= 0.5;
+                                if(event.key.keysym.mod & KMOD_ALT)editor.scale = 0.3f;
+                                else editor.scale -= 0.1;
                             }
                             break;
                         case SDLK_a:
@@ -1619,19 +1630,21 @@ int main(int argc, char *argv[]) {
                             if(CTRL_HELD){
                                 if(SHIFT_HELD){
                                     redo(&editor);
+                                    editor_recalculate_lines(&editor);
                                 }else{
                                     undo(&editor);
+                                    editor_recalculate_lines(&editor);
                                 }
                             }
                         case SDLK_PAGEUP:
                             editor.scroll.y_offset -= 5;
                             editor.cursor.line -= 5;
-                            clamp_scroll(&editor, &editor.scroll, scale);
+                            clamp_scroll(&editor, &editor.scroll,editor.scale);
                             break;
                         case SDLK_PAGEDOWN:
                             editor.scroll.y_offset += 5;
                             editor.cursor.line += 5;
-                            clamp_scroll(&editor, &editor.scroll, scale);
+                            clamp_scroll(&editor, &editor.scroll,editor.scale);
                             break;
                         default:
                             break;
@@ -1639,9 +1652,9 @@ int main(int argc, char *argv[]) {
             }
             } else if (event.type == SDL_MOUSEWHEEL) {
                 editor.scroll.y_offset -= event.wheel.y * 10;
-                clamp_scroll(&editor, &editor.scroll, scale);
+                clamp_scroll(&editor, &editor.scroll,editor.scale);
             } else if(event.type == SDL_MOUSEBUTTONDOWN){
-                if (event.button.button == SDL_BUTTON_LEFT && !editor.in_command) {
+                if (event.button.button == SDL_BUTTON_LEFT && !cmd_box.in_command) {
 
                 // Check if mouse is over the scrollbar
                 int win_w, win_h;
@@ -1657,7 +1670,7 @@ int main(int argc, char *argv[]) {
                     for (int i = 0; editor.text.data[i]; ++i) {
                         if (editor.text.data[i] == '\n') total_lines++;
                     }
-                    int lines_on_screen = win_h / (FONT_HEIGHT * scale);
+                    int lines_on_screen = win_h / (FONT_HEIGHT *editor.scale);
                     float thumb_height = (total_lines > 0) ? (bar_height * lines_on_screen) / total_lines : bar_height;
                     if (thumb_height < 20.0f) thumb_height = 20.0f;
                     if (thumb_height > bar_height) thumb_height = bar_height;
@@ -1692,7 +1705,7 @@ int main(int argc, char *argv[]) {
                                     if (new_offset < 0) new_offset = 0;
                                     if (new_offset > max_offset) new_offset = max_offset;
                                     editor.scroll.y_offset = new_offset;
-                                    clamp_scroll(&editor, &editor.scroll, scale);
+                                    clamp_scroll(&editor, &editor.scroll,editor.scale);
 
                                     // Redraw immediately while dragging
                                     int w, h;
@@ -1705,18 +1718,18 @@ int main(int argc, char *argv[]) {
                                     glMatrixMode(GL_MODELVIEW);
                                     glLoadIdentity();
 
-                                    renderTextScrolled(&editor, (FONT_WIDTH * scale) * 3 + 10.0f, 10.0f, scale, WHITE);
-                                    render_scrollbar(&editor, scale);
-                                    render_line_numbers(&editor, scale);
+                                    renderTextScrolled(&editor, (FONT_WIDTH *editor.scale) * 3 + 10.0f, 10.0f,editor.scale, WHITE);
+                                    render_scrollbar(&editor,editor.scale);
+                                    render_line_numbers(&editor,editor.scale);
 
-                                    if(editor.in_command){
+                                    if(cmd_box.in_command){
                                         char buffer[100];
-                                        render_text_box(&editor, buffer, "Enter Command: ");
+                                        render_text_box(&editor, &cmd_box, buffer, "Enter Command: ");
                                     }else{
-                                        renderCursorScrolled(&editor, scale, &editor.scroll);
+                                        renderCursorScrolled(&editor,editor.scale, &editor.scroll);
                                     }
 
-                                    render_selection(&editor, scale, &editor.scroll);
+                                    render_selection(&editor,editor.scale, &editor.scroll);
 
                                     SDL_GL_SwapWindow(editor.window);
                                 } else if (drag_event.type == SDL_QUIT) {
@@ -1738,7 +1751,7 @@ int main(int argc, char *argv[]) {
                         if (new_offset < 0) new_offset = 0;
                         if (new_offset > max_offset) new_offset = max_offset;
                         editor.scroll.y_offset = new_offset;
-                        clamp_scroll(&editor, &editor.scroll, scale);
+                        clamp_scroll(&editor, &editor.scroll,editor.scale);
                         // Don't move cursor or select text if scrollbar was clicked
                         break;
                     }
@@ -1750,13 +1763,13 @@ int main(int argc, char *argv[]) {
                 Uint32 now = SDL_GetTicks();
                 int double_click_distance = 5; // pixels
 
-                if (event.button.button == SDL_BUTTON_LEFT && !editor.in_command) {        
+                if (event.button.button == SDL_BUTTON_LEFT && !cmd_box.in_command) {        
                     bool is_double_click = (now - last_click_time < 500 &&
                         abs(event.button.x - last_click_x) < double_click_distance &&
                         abs(event.button.y - last_click_y) < double_click_distance);
 
                     if (is_double_click) {
-                        editor_move_cursor_to_click(&editor, event.button.x, event.button.y, scale);
+                        editor_move_cursor_to_click(&editor, event.button.x, event.button.y,editor.scale);
 
                         // Find word boundaries
                         int start = editor.cursor.pos_in_text;
@@ -1788,7 +1801,7 @@ int main(int argc, char *argv[]) {
                         editor.selection = false;
                         editor.selection_start = 0;
                         editor.selection_end = 0;
-                        editor_move_cursor_to_click(&editor, event.button.x, event.button.y, scale);
+                        editor_move_cursor_to_click(&editor, event.button.x, event.button.y,editor.scale);
                     }
                     last_click_time = now;
                     last_click_x = event.button.x;
@@ -1815,17 +1828,17 @@ int main(int argc, char *argv[]) {
             render_file_browser(&editor, &fb);
         }
         else {
-            renderTextScrolled(&editor, LINE_NUMS_OFFSET, 10.0f, scale, WHITE);
-            render_scrollbar(&editor, scale);
-            render_line_numbers(&editor, scale);
-            render_selection(&editor, scale, &editor.scroll);
+            renderTextScrolled(&editor, LINE_NUMS_OFFSET, 10.0f,editor.scale, WHITE);
+            render_scrollbar(&editor,editor.scale);
+            render_line_numbers(&editor,editor.scale);
+            render_selection(&editor,editor.scale, &editor.scroll);
         }
         
-        if(editor.in_command){
+        if(cmd_box.in_command){
             char buffer[100];
-            render_text_box(&editor, buffer, "Enter Command: ");
+            render_text_box(&editor, &cmd_box, buffer, "Enter Command: ");
         }else{
-            if(!fb.file_browser) renderCursorScrolled(&editor, scale, &editor.scroll);
+            if(!fb.file_browser) renderCursorScrolled(&editor,editor.scale, &editor.scroll);
         }
         
 
