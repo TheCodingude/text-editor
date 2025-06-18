@@ -655,7 +655,7 @@ void editor_recalc_cursor_pos_and_line(Editor* editor){
 
 
 
-void render_text_box(Editor *editor, Command_Box *cmd_box, char *buffer, char* prompt){
+void render_text_box(Editor *editor, Command_Box *cmd_box){
     int w, h;
     SDL_GetWindowSize(editor->window, &w, &h);
 
@@ -679,10 +679,10 @@ void render_text_box(Editor *editor, Command_Box *cmd_box, char *buffer, char* p
     // Prompt
     float prompt_x = x + box_padding;
     float prompt_y = y - 40;
-    renderText(prompt, prompt_x, prompt_y, scale_prompt, WHITE);
+    renderText(cmd_box->prompt, prompt_x, prompt_y, scale_prompt, WHITE);
 
     // Command text (user input)
-    float cmd_x = strlen(prompt) * FONT_WIDTH * scale_prompt - 40;
+    float cmd_x = strlen(cmd_box->prompt) * FONT_WIDTH * scale_prompt - 40;
     float cmd_y = prompt_y;
     renderText(cmd_box->command_text.data, cmd_x, cmd_y, scale_prompt, WHITE);
 
@@ -1395,6 +1395,7 @@ int main(int argc, char *argv[]) {
                             cmd_box.command_cursor.pos_in_text = 0;
                             cmd_box.in_command = !cmd_box.in_command;
                             cmd_box.type = CMD_NONE;
+                            cmd_box.prompt = "Enter Command: ";
                             break;
                         case SDLK_LEFT:
                             if (cmd_box.in_command) {
@@ -1723,8 +1724,7 @@ int main(int argc, char *argv[]) {
                                     render_line_numbers(&editor,editor.scale);
 
                                     if(cmd_box.in_command){
-                                        char buffer[100];
-                                        render_text_box(&editor, &cmd_box, buffer, "Enter Command: ");
+                                        render_text_box(&editor, &cmd_box);
                                     }else{
                                         renderCursorScrolled(&editor,editor.scale, &editor.scroll);
                                     }
@@ -1836,7 +1836,7 @@ int main(int argc, char *argv[]) {
         
         if(cmd_box.in_command){
             char buffer[100];
-            render_text_box(&editor, &cmd_box, buffer, "Enter Command: ");
+            render_text_box(&editor, &cmd_box);
         }else{
             if(!fb.file_browser) renderCursorScrolled(&editor,editor.scale, &editor.scroll);
         }
