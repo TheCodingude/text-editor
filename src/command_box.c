@@ -14,33 +14,41 @@ typedef struct{
 }Command_Box;
 
 
+void cmdbox_reinit(Command_Box *cmd_box, char* new_prompt, Command_type type){
+    strung_reset(&cmd_box->command_text);
+    cmd_box->prompt = new_prompt;
+    cmd_box->command_cursor.pos_in_text = 0;
+    cmd_box->command_cursor.pos_in_line = 0;
+    cmd_box->type = type;
+}
+
+
 void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box){
 
     if(cmd_box->type == CMD_NONE){
-         // is this how parsing works? 100%. I just wanna get something working
-        if(strcmp(strung_substr(&cmd_box->command_text, 0, 3), "jmp") == 0 && cmd_box->command_text.data[3] == ' '){ 
-            if(cmd_box->command_text.size > 4){
-                int line = atoi(strung_substr(&cmd_box->command_text, 4, 5)) - 1;
-                if(line == 0){ // user either didn't put anything or put a non number, or just put 0, which is invalid
-                    editor->cursor.line = line;
-                    editor->cursor.pos_in_text = editor->lines.lines[editor->cursor.line].start;
-                    editor->cursor.pos_in_line = 0;
-                    ensure_cursor_visible(editor); 
-                } else{ // so we ask for line num
-                    strung_reset(&cmd_box->command_text);
-                    cmd_box->command_cursor.pos_in_text = 0;
-                    cmd_box->command_cursor.pos_in_line = 0;
-                    cmd_box->prompt = "jump to: ";
-                    cmd_box->type = CMD_JMP;
-                }
+        Strung command = strung_copy(&cmd_box->command_text);
+        strung_trim(&command);
+        int token_count; 
+        Strung** tokens = strung_split_by_space(&command, &token_count);
+
+
+        if(strcmp(tokens[0]->data, "jmp") == 0){ 
+            if (token_count < 2){
+                cmdbox_reinit(cmd_box, "jmp to: ", CMD_JMP);
             } else {
-                strung_reset(&cmd_box->command_text);
-                cmd_box->prompt = "jump to: ";
-                cmd_box->type = CMD_JMP;
+                int line = atoi(tokens[1]->data) - 1;
+                if(line > 0 && line <= editor->lines.size){
+                    editor->cursor.line = line;
+                    editor->cursor.pos_in_text = 0;
+                    ensure_cursor_visible(editor);
+                }
+                else{
+                    printf("'%s' is not a valid line\n", tokens[1]->data);
+                }
             }
         }
         else{
-            fprintf(stderr, "Unknown Command\n"); // popup in future
+            fprintf(stderr, "Unknown Command\n"); // i think it the future if it nothing we will try and run it as a terminal command
         }
 
     }else{

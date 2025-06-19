@@ -19,6 +19,9 @@ void strung_insert_string(Strung* str, const char* text, int position);
 void strung_remove_char(Strung* str, int position);
 void strung_free(Strung* str);
 void strung_reset(Strung* str);
+void strung_trim(Strung* s);
+Strung** strung_split_by_space(const Strung *input, int *out_count);
+
 
 #endif // STRUNG_H_
 
@@ -206,6 +209,63 @@ Strung strung_copy(const Strung* src) { // creates a copy of source strung
     memcpy(copy.data, src->data, copy.size);
     copy.data[copy.size] = '\0';
     return copy;
+}
+
+void strung_trim(Strung *s) {
+    int start = 0;
+    int end = s->size - 1;
+
+    while (start <= end && isspace((unsigned char)s->data[start])) {
+        start++;
+    }
+
+    while (end >= start && isspace((unsigned char)s->data[end])) {
+        end--;
+    }
+
+    int new_size = (start <= end) ? (end - start + 1) : 0;
+
+    if (start > 0 && new_size > 0) {
+        memmove(s->data, s->data + start, new_size);
+    }
+
+    s->data[new_size] = '\0';
+    s->size = new_size;
+}
+
+Strung** strung_split_by_space(const Strung *input, int *out_count) {
+    int capacity = 4;
+    int count = 0;
+    Strung **tokens = malloc(sizeof(Strung*) * capacity);
+
+    int i = 0;
+    while (i < input->size) {
+        while (i < input->size && isspace((unsigned char)input->data[i])) i++;
+        if (i >= input->size) break;
+
+        int start = i;
+        while (i < input->size && !isspace((unsigned char)input->data[i])) i++;
+
+        int len = i - start;
+        if (len > 0) {
+            Strung *token = malloc(sizeof(Strung));
+            token->size = len;
+            token->capacity = len + 1;
+            token->data = malloc(token->capacity);
+            memcpy(token->data, &input->data[start], len);
+            token->data[len] = '\0';
+
+            if (count >= capacity) {
+                capacity *= 2;
+                tokens = realloc(tokens, sizeof(Strung*) * capacity);
+            }
+
+            tokens[count++] = token;
+        }
+    }
+
+    *out_count = count;
+    return tokens;
 }
 
 
