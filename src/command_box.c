@@ -2,7 +2,8 @@
 
 typedef enum{
     CMD_NONE,
-    CMD_JMP
+    CMD_JMP,
+    CMD_TERM
 }Command_type;
 
 typedef struct{
@@ -37,15 +38,19 @@ void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box){
                 cmdbox_reinit(cmd_box, "jmp to: ", CMD_JMP);
             } else {
                 int line = atoi(tokens[1]->data) - 1;
-                if(line > 0 && line <= editor->lines.size){
+                if(line >= 0 && line <= editor->lines.size){
                     editor->cursor.line = line;
                     editor->cursor.pos_in_text = 0;
                     ensure_cursor_visible(editor);
+                    cmd_box->in_command = false;
                 }
                 else{
                     printf("'%s' is not a valid line\n", tokens[1]->data);
                 }
             }
+        }
+        else if(strcmp(tokens[0]->data, "com") == 0){
+            cmdbox_reinit(cmd_box, "Shell Command:", CMD_TERM);
         }
         else{
             fprintf(stderr, "Unknown Command\n"); // i think it the future if it nothing we will try and run it as a terminal command
@@ -69,6 +74,11 @@ void cmdbox_command(Editor* editor, Command_Box *cmd_box){ // editor is passed s
             editor->cursor.pos_in_text = editor->lines.lines[editor->cursor.line].start;
             editor->cursor.pos_in_line = 0;
             ensure_cursor_visible(editor); 
+            cmd_box->in_command = false;
+            break;
+        case CMD_TERM:
+            system(cmd_box->command_text.data); // in the future create a subprocess with pipes so we can read stdout and stderr, and provide stdin 
+            cmdbox_reinit(cmd_box, cmd_box->prompt, cmd_box->type); // Just in case i switch the wording or whatever in the future
             break;
 
 

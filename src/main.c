@@ -1391,11 +1391,8 @@ int main(int argc, char *argv[]) {
                             strung_reset(&fb.search_buffer);
                             break;
                         case SDLK_F3:
-                            strung_reset(&cmd_box.command_text);
-                            cmd_box.command_cursor.pos_in_text = 0;
+                            cmdbox_reinit(&cmd_box, "Enter Command:", CMD_NONE);
                             cmd_box.in_command = !cmd_box.in_command;
-                            cmd_box.type = CMD_NONE;
-                            cmd_box.prompt = "Enter Command: ";
                             break;
                         case SDLK_LEFT:
                             if (cmd_box.in_command) {
