@@ -3,7 +3,8 @@
 typedef enum{
     CMD_NONE,
     CMD_JMP,
-    CMD_TERM
+    CMD_TERM,
+    CMD_QUIT
 }Command_type;
 
 typedef struct{
@@ -58,6 +59,9 @@ void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box){
         else if(strcmp(tokens[0]->data, "com") == 0){
             cmdbox_reinit(cmd_box, "Shell Command:", CMD_TERM);
         }
+        else if(strcmp(tokens[0]->data, "quit") == 0){
+            exit(0);
+        }
         else{
             fprintf(stderr, "Unknown Command\n"); // i think it the future if it nothing we will try and run it as a terminal command
         }
@@ -86,6 +90,7 @@ void cmdbox_command(Editor* editor, Command_Box *cmd_box){ // editor is passed s
             system(cmd_box->command_text.data); // in the future create a subprocess with pipes so we can read stdout and stderr, and provide stdin 
             cmdbox_reinit(cmd_box, cmd_box->prompt, cmd_box->type); // Just in case i switch the wording or whatever in the future
             break;
+        
 
 
 
