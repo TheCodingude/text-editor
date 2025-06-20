@@ -36,12 +36,18 @@ void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box){
         if(strcmp(tokens[0]->data, "jmp") == 0){ 
             if (token_count < 2){
                 cmdbox_reinit(cmd_box, "jmp to: ", CMD_JMP);
-            } else {
+            }else if(strcmp(tokens[1]->data, "end") == 0){
+                editor->cursor.line = editor->lines.size - 1;
+                editor->cursor.pos_in_text = editor->lines.lines[editor->lines.size - 1].start;
+                editor->cursor.pos_in_line;
+                editor_center_cursor(editor);
+            }
+            else {
                 int line = atoi(tokens[1]->data) - 1;
                 if(line >= 0 && line <= editor->lines.size){
                     editor->cursor.line = line;
                     editor->cursor.pos_in_text = 0;
-                    ensure_cursor_visible(editor);
+                    editor_center_cursor(editor);
                     cmd_box->in_command = false;
                 }
                 else{
@@ -73,7 +79,7 @@ void cmdbox_command(Editor* editor, Command_Box *cmd_box){ // editor is passed s
             editor->cursor.line = line;
             editor->cursor.pos_in_text = editor->lines.lines[editor->cursor.line].start;
             editor->cursor.pos_in_line = 0;
-            ensure_cursor_visible(editor); 
+            editor_center_cursor(editor); 
             cmd_box->in_command = false;
             break;
         case CMD_TERM:

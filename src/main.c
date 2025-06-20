@@ -222,6 +222,7 @@ typedef struct{
 
 void editor_recalculate_lines(Editor *editor);
 void ensure_cursor_visible(Editor *editor);
+void editor_center_cursor(Editor *editor);
 
 #include "filestuff.h"
 #include "la.c"
@@ -754,6 +755,18 @@ void render_scrollbar(Editor *editor, float scale) {
     glVertex2f(bar_x + bar_width - 2, thumb_y + thumb_height);
     glVertex2f(bar_x + 2, thumb_y + thumb_height);
     glEnd();
+}
+
+void editor_center_cursor(Editor *editor) {
+    int w, h;
+    SDL_GetWindowSize(editor->window, &w, &h);
+    int lines_on_screen = h / (FONT_HEIGHT * editor->scale);
+
+    int target_offset = editor->cursor.line - lines_on_screen / 2;
+    if (target_offset < 0) target_offset = 0;
+    editor->scroll.y_offset = target_offset;
+
+    clamp_scroll(editor, &editor->scroll, editor->scale);
 }
 
 void editor_recalculate_lines(Editor *editor){
