@@ -1,10 +1,11 @@
 // I get to work on the fun stuff now :D
 
 typedef enum{
-    CMD_NONE,
-    CMD_JMP,
-    CMD_TERM,
-    CMD_QUIT
+    CMD_NONE, // no current mode
+    CMD_JMP, // jump to line or end of file 
+    CMD_TERM, // run a shell command
+    CMD_QUIT, // exiting the program
+    CMD_OPENF // opening a file
 }Command_type;
 
 typedef struct{
@@ -25,7 +26,7 @@ void cmdbox_reinit(Command_Box *cmd_box, char* new_prompt, Command_type type){
 }
 
 
-void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box){
+void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box, File_Browser *fb){
 
     if(cmd_box->type == CMD_NONE){
         Strung command = strung_copy(&cmd_box->command_text);
@@ -62,8 +63,13 @@ void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box){
         else if(strcmp(tokens[0]->data, "quit") == 0){
             exit(0);
         }
+        else if(strcmp(tokens[0]->data, "open") == 0){
+            cmdbox_reinit(cmd_box, "Open File:", CMD_OPENF);
+            strung_append(&cmd_box->command_text, fb->relative_path.data);
+            cmd_box->command_cursor.pos_in_text = fb->relative_path.size;
+        }
         else{
-            fprintf(stderr, "Unknown Command\n"); // i think it the future if it nothing we will try and run it as a terminal command
+            // doing nothing cause running a shell command by default seems kinda annoying 
         }
 
     }else{
@@ -72,11 +78,11 @@ void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box){
 
 }
 
-void cmdbox_command(Editor* editor, Command_Box *cmd_box){ // editor is passed so we can manipulate it 
+void cmdbox_command(Editor* editor, Command_Box *cmd_box, File_Browser *fb){ // editor is passed so we can manipulate it 
 
     switch(cmd_box->type){
         case CMD_NONE:
-            cmdbox_parse_command(editor, cmd_box);
+            cmdbox_parse_command(editor, cmd_box, fb);
             break;
         case CMD_JMP:
             int line = atoi(cmd_box->command_text.data) - 1;
@@ -90,7 +96,10 @@ void cmdbox_command(Editor* editor, Command_Box *cmd_box){ // editor is passed s
             system(cmd_box->command_text.data); // in the future create a subprocess with pipes so we can read stdout and stderr, and provide stdin 
             cmdbox_reinit(cmd_box, cmd_box->prompt, cmd_box->type); // Just in case i switch the wording or whatever in the future
             break;
-        
+        case CMD_OPENF:
+            open_file(editor, cmd_box->command_text.data);
+            cmd_box->in_command = false;
+            break;
 
 
 

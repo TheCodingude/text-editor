@@ -683,7 +683,7 @@ void render_command_box(Editor *editor, Command_Box *cmd_box){
     renderText(cmd_box->prompt, prompt_x, prompt_y, scale_prompt, WHITE);
 
     // Command text (user input)
-    float cmd_x = strlen(cmd_box->prompt) * FONT_WIDTH * scale_prompt;
+    float cmd_x = (strlen(cmd_box->prompt) - 1) * (FONT_WIDTH * scale_prompt) + 10;
     float cmd_y = prompt_y;
     renderText(cmd_box->command_text.data, cmd_x, cmd_y, scale_prompt, WHITE);
 
@@ -1147,7 +1147,7 @@ int main(int argc, char *argv[]) {
                         break;
                     case SDLK_RETURN:
                         if(cmd_box.in_command){ // idk the order i should focus these 
-                            cmdbox_command(&editor, &cmd_box);
+                            cmdbox_command(&editor, &cmd_box, &fb);
                         }
                         else if(fb.new_file){
                             if(fb.new_file_path.size > 0){
@@ -1369,7 +1369,7 @@ int main(int argc, char *argv[]) {
                             break;
                         case SDLK_RETURN:
                             if(cmd_box.in_command){ 
-                                cmdbox_command(&editor, &cmd_box);
+                                cmdbox_command(&editor, &cmd_box, &fb);
                             }else{
                                 save_undo_state(&editor);
                                 strung_insert_char(&editor.text, '\n', editor.cursor.pos_in_text);
