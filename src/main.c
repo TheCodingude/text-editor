@@ -689,7 +689,7 @@ void render_command_box(Editor *editor, Command_Box *cmd_box){
 
     // Cursor
     float cursor_x = cmd_x;
-    for (int i = 0; i < cmd_box->command_cursor.pos_in_text; ++i) {
+    for (int i = 0; i < cmd_box->cursor; ++i) {
         char c = cmd_box->command_text.data[i];
         if (!glyph_cache[(unsigned char)c]) {
             cache_glyph(c, font);  // Ensure it's cached
@@ -1120,8 +1120,8 @@ int main(int argc, char *argv[]) {
                         editor_recalculate_lines(&editor);
                     } else if(cmd_box.in_command){
                         if(!(SDL_GetModState() & KMOD_CTRL)){
-                            strung_insert_string(&cmd_box.command_text, event.text.text, cmd_box.command_cursor.pos_in_text);
-                            cmd_box.command_cursor.pos_in_text += strlen(event.text.text);
+                            strung_insert_string(&cmd_box.command_text, event.text.text, cmd_box.cursor);
+                            cmd_box.cursor += strlen(event.text.text);
                         }
                     }
                 }
@@ -1315,9 +1315,9 @@ int main(int argc, char *argv[]) {
                     switch (event.key.keysym.sym) {
                         case SDLK_BACKSPACE:
                             if (cmd_box.in_command){
-                                if(cmd_box.command_cursor.pos_in_text > 0){
-                                    strung_remove_char(&cmd_box.command_text, cmd_box.command_cursor.pos_in_text - 1);
-                                    cmd_box.command_cursor.pos_in_text--;
+                                if(cmd_box.cursor > 0){
+                                    strung_remove_char(&cmd_box.command_text, cmd_box.cursor - 1);
+                                    cmd_box.cursor--;
                                 }
                             } else if(editor.selection){
                                 
@@ -1358,8 +1358,8 @@ int main(int argc, char *argv[]) {
                             break;
                         case SDLK_DELETE:
                             if (cmd_box.in_command) {
-                                if (cmd_box.command_cursor.pos_in_text < cmd_box.command_text.size) {
-                                    strung_remove_char(&cmd_box.command_text, cmd_box.command_cursor.pos_in_text);
+                                if (cmd_box.cursor < cmd_box.command_text.size) {
+                                    strung_remove_char(&cmd_box.command_text, cmd_box.cursor);
                                 }
                             } else if (editor.cursor.pos_in_text < editor.text.size) {
                                 save_undo_state(&editor);
@@ -1409,8 +1409,8 @@ int main(int argc, char *argv[]) {
                             break;
                         case SDLK_LEFT:
                             if (cmd_box.in_command) {
-                                if (cmd_box.command_cursor.pos_in_text > 0) {
-                                    cmd_box.command_cursor.pos_in_text--;
+                                if (cmd_box.cursor > 0) {
+                                    cmd_box.cursor--;
                                 }
                             } else {
                                 bool shift = (event.key.keysym.mod & KMOD_SHIFT);
@@ -1479,8 +1479,8 @@ int main(int argc, char *argv[]) {
                             break;
                         case SDLK_RIGHT:
                             if (cmd_box.in_command) {
-                                if (cmd_box.command_cursor.pos_in_text < cmd_box.command_text.size) {
-                                    cmd_box.command_cursor.pos_in_text++;
+                                if (cmd_box.cursor < cmd_box.command_text.size) {
+                                    cmd_box.cursor++;
                                 }
                             } else {
                                 bool shift = (event.key.keysym.mod & KMOD_SHIFT);

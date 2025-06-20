@@ -9,7 +9,7 @@ typedef enum{
 }Command_type;
 
 typedef struct{
-    Cursor command_cursor; // i really don't think this needs a full cursor right? just an index in the text should suffice 
+    size_t cursor; // i really don't think this needs a full cursor right? just an index in the text should suffice 
     bool in_command;
     char* prompt; 
     Strung command_text;
@@ -20,8 +20,7 @@ typedef struct{
 void cmdbox_reinit(Command_Box *cmd_box, char* new_prompt, Command_type type){
     strung_reset(&cmd_box->command_text);
     cmd_box->prompt = new_prompt;
-    cmd_box->command_cursor.pos_in_text = 0;
-    cmd_box->command_cursor.pos_in_line = 0;
+    cmd_box->cursor = 0;
     cmd_box->type = type;
 }
 
@@ -66,7 +65,7 @@ void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box, File_Browser *fb
         else if(strcmp(tokens[0]->data, "open") == 0){
             cmdbox_reinit(cmd_box, "Open File:", CMD_OPENF);
             strung_append(&cmd_box->command_text, fb->relative_path.data);
-            cmd_box->command_cursor.pos_in_text = fb->relative_path.size;
+            cmd_box->cursor = fb->relative_path.size;
         }
         else{
             // doing nothing cause running a shell command by default seems kinda annoying 
