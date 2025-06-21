@@ -1595,7 +1595,10 @@ int main(int argc, char *argv[]) {
                             break;
                         case SDLK_o:
                             if(event.key.keysym.mod & KMOD_CTRL){
-                                // open_file();
+                                cmd_box.in_command = true;
+                                cmdbox_reinit(&cmd_box, "Open File:", CMD_OPENF);
+                                strung_append(&cmd_box.command_text, fb.relative_path.data);
+                                cmd_box.cursor = fb.relative_path.size;
                             }
                             break;
                         case SDLK_x:
