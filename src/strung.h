@@ -21,7 +21,8 @@ void strung_free(Strung* str);
 void strung_reset(Strung* str);
 void strung_trim(Strung* s);
 Strung** strung_split_by_space(const Strung *input, int *out_count);
-
+int strung_search_left(const Strung* str, char search);
+int strung_search_right(const Strung* str, char search);
 
 #endif // STRUNG_H_
 
@@ -193,7 +194,7 @@ char* strung_substr(const Strung* str, size_t start, size_t length) {
 
 void strung_delete_range(Strung* str, int start, int end) {
     if (!str || start < 0 || end > str->size || start >= end) {
-        // Invalid range
+        fprintf(stderr, "Invalid Range strung_delete_range\n");
         return;
     }
     int num_to_remove = end - start;
@@ -267,6 +268,25 @@ Strung** strung_split_by_space(const Strung *input, int *out_count) {
     *out_count = count;
     return tokens;
 }
+
+int strung_search_left(const Strung* str, char search){
+    for (int i = 0; i < str->size; i++) {
+        if (str->data[i] == search) {
+            return i;
+        }
+    }
+    return -1;
+
+}
+int strung_search_right(const Strung* str, char search){
+    for (int i = str->size - 1; i >= 0; i--) {
+        if (str->data[i] == search) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 
 
 

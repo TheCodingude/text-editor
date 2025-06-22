@@ -96,7 +96,19 @@ void cmdbox_command(Editor* editor, Command_Box *cmd_box, File_Browser *fb){ // 
             cmdbox_reinit(cmd_box, cmd_box->prompt, cmd_box->type); // Just in case i switch the wording or whatever in the future
             break;
         case CMD_OPENF:
+            char buffer[PATH_MAX];
             open_file(editor, cmd_box->command_text.data);
+            if(realpath(cmd_box->command_text.data, buffer)){
+                strung_reset(&fb->relative_path);
+                strung_append(&fb->relative_path, buffer);
+                int idx = strung_search_right(&fb->relative_path, '/');
+                if (idx > 0) {
+                    strung_delete_range(&fb->relative_path, idx + 1, fb->relative_path.size);
+                }
+
+            }else{
+                fprintf(stderr, "File no thing\n");
+            } 
             cmd_box->in_command = false;
             break;
 

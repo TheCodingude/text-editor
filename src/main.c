@@ -1035,7 +1035,7 @@ int main(int argc, char *argv[]) {
 
     font = TTF_OpenFont("./MapleMono-Regular.ttf", 48); 
     // i dont like the way that '#' look in this font so it WILL be changed later
-    // TODO: Have different fonts that are loadable with the application is open
+    // TODO: Have different fonts that are loadable while the application is open
 
     Command_Box cmd_box = {.command_text = strung_init("")};
 
