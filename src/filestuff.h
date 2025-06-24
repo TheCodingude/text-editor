@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <openssl/evp.h>
 
 void organize_directory(File_Browser *fb){
     if (fb->items.count < 2) return;
@@ -60,6 +60,36 @@ void read_entire_dir(File_Browser *fb) {
 
     closedir(dir);
     organize_directory(fb);
+}
+
+
+void print_hash(const unsigned char *hash, unsigned int len) {
+    for (unsigned int i = 0; i < len; i++)
+        printf("%02x", hash[i]);
+    printf("\n");
+}
+
+void file_encrypt(Editor *editor, const unsigned char* key){
+
+
+}
+
+void file_password_protect(Editor *editor, const char* password){
+
+    unsigned char hash[EVP_MAX_MD_SIZE];
+    unsigned int hash_len;
+
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    if (!ctx) return;
+
+    EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
+    EVP_DigestUpdate(ctx, password, strlen(password));
+    EVP_DigestFinal_ex(ctx, hash, &hash_len);
+
+    EVP_MD_CTX_free(ctx);
+
+    
+
 }
 
 

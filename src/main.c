@@ -207,8 +207,10 @@ typedef struct{
 
     Scroll scroll;
     Cursor cursor;
+
     char* file_path;
-    
+    unsigned char* hash;
+
     Strung text;
     Lines lines;
 

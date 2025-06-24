@@ -1,5 +1,5 @@
 main: src/main.c
-	gcc src/main.c -o main -lGL -lm -lSDL2 -ggdb -lSDL2_ttf
+	gcc src/main.c -o main -lGL -lm -lSDL2 -ggdb -lSDL2_ttf -lssl -lcrypto
 	./main src/main.c
 
 old: old_rendering/old_rendering.c 

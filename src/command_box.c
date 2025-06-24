@@ -5,7 +5,8 @@ typedef enum{
     CMD_JMP, // jump to line or end of file 
     CMD_TERM, // run a shell command
     CMD_QUIT, // exiting the program
-    CMD_OPENF // opening a file
+    CMD_OPENF, // opening a file
+    CMD_PASS // password protection on the file
 }Command_type;
 
 typedef struct{
@@ -67,6 +68,9 @@ void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box, File_Browser *fb
             strung_append(&cmd_box->command_text, fb->relative_path.data);
             cmd_box->cursor = fb->relative_path.size;
         }
+        else if(strcmp(tokens[0]->data, "protect") == 0){
+            cmdbox_reinit(cmd_box, "Enter Password:", CMD_PASS);
+        }
         else{
             // doing nothing cause running a shell command by default seems kinda annoying 
         }
@@ -111,7 +115,12 @@ void cmdbox_command(Editor* editor, Command_Box *cmd_box, File_Browser *fb){ // 
             } 
             cmd_box->in_command = false;
             break;
-
+        case CMD_PASS:
+            file_password_protect(editor, cmd_box->command_text.data);
+            break;
+        default:
+            printf("Dont forget to break\n");
+            break;
 
 
 
