@@ -209,7 +209,7 @@ typedef struct{
     Cursor cursor;
 
     char* file_path;
-    unsigned char* hash;
+    char* file_password;
 
     Strung text;
     Lines lines;
@@ -226,7 +226,7 @@ void editor_recalculate_lines(Editor *editor);
 void ensure_cursor_visible(Editor *editor);
 void editor_center_cursor(Editor *editor);
 
-#include "filestuff.h"
+
 #include "la.c"
 #include "command_box.c"
 
@@ -1044,7 +1044,7 @@ int main(int argc, char *argv[]) {
     bool line_switch = false;
 
     if (argc > 1){
-        open_file(&editor, argv[1]);
+        open_file(&editor, &cmd_box, argv[1]);
         editor_recalculate_lines(&editor);
     }
 
@@ -1090,7 +1090,7 @@ int main(int argc, char *argv[]) {
                 if(fb.file_browser){
                     move_file_to_fb(&fb, event.drop.file); // make this work with folders
                 }else{
-                    open_file(&editor, event.drop.file); 
+                    open_file(&editor, &cmd_box,event.drop.file); 
                 }
                 SDL_free(event.drop.file);                                                               
             }
@@ -1190,7 +1190,7 @@ int main(int argc, char *argv[]) {
                                 if (!realpath(full_path, resolved)) {
                                     fprintf(stderr, "Failed to get full file path of %s\n", selected);
                                 } else {
-                                    open_file(&editor, resolved);
+                                    open_file(&editor, &cmd_box, resolved);
                                     ensure_cursor_visible(&editor);
                                     fb.file_browser = false;
                                 }

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <openssl/evp.h>
+#include <openssl/aes.h>
 
 void organize_directory(File_Browser *fb){
     if (fb->items.count < 2) return;
@@ -69,28 +70,76 @@ void print_hash(const unsigned char *hash, unsigned int len) {
     printf("\n");
 }
 
-void file_encrypt(Editor *editor, const unsigned char* key){
+void hash_password(const char* password, unsigned char* hash, unsigned int* hash_len){
 
-
-}
-
-void file_password_protect(Editor *editor, const char* password){
-
-    unsigned char hash[EVP_MAX_MD_SIZE];
-    unsigned int hash_len;
 
     EVP_MD_CTX *ctx = EVP_MD_CTX_new();
     if (!ctx) return;
 
     EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
     EVP_DigestUpdate(ctx, password, strlen(password));
-    EVP_DigestFinal_ex(ctx, hash, &hash_len);
+    EVP_DigestFinal_ex(ctx, hash, hash_len);
 
     EVP_MD_CTX_free(ctx);
 
-    
+}
+
+
+void file_encrypt(Editor *editor, FILE *f){
+    if (!editor || !editor->file_password || !editor->text.data) return;
+
+    // Use a salt for PBKDF2 (can be stored in file header for decryption)
+    unsigned char salt[16] = {0};
+    if (fwrite(salt, 1, sizeof(salt), f) != sizeof(salt)) return; // Write salt to file
+    fprintf(f, "\n");
+    // Derive key and IV from password using PBKDF2 
+    unsigned char key_iv[48]; // 32 bytes for key, 16 bytes for IV
+    unsigned char *key = key_iv;      // first 32 bytes
+    unsigned char *iv = key_iv + 32;  // next 16 bytes
+    if (PKCS5_PBKDF2_HMAC(editor->file_password, strlen(editor->file_password),
+                          salt, sizeof(salt), 100000, EVP_sha256(), sizeof(key_iv), key_iv) != 1) {
+        return;
+    }
+    // key and iv are now set
+
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) return;
+
+    if (EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv) != 1) {
+        EVP_CIPHER_CTX_free(ctx);
+        return;
+    }
+
+    int outlen1 = editor->text.size + AES_BLOCK_SIZE;
+    unsigned char *ciphertext = malloc(outlen1);
+    if (!ciphertext) {
+        EVP_CIPHER_CTX_free(ctx);
+        return;
+    }
+
+    int len = 0, ciphertext_len = 0;
+    if (EVP_EncryptUpdate(ctx, ciphertext, &len, (unsigned char*)editor->text.data, editor->text.size) != 1) {
+        free(ciphertext);
+        EVP_CIPHER_CTX_free(ctx);
+        return;
+    }
+    ciphertext_len = len;
+
+    if (EVP_EncryptFinal_ex(ctx, ciphertext + len, &len) != 1) {
+        free(ciphertext);
+        EVP_CIPHER_CTX_free(ctx);
+        return;
+    }
+    ciphertext_len += len;
+
+    fwrite(ciphertext, 1, ciphertext_len, f);
+
+    free(ciphertext);
+    EVP_CIPHER_CTX_free(ctx);
 
 }
+
+
 
 
 void create_new_file(const char* fp){
@@ -172,7 +221,7 @@ void open_file_into_strung(Strung *buff, char* file_path){
 }
 
 
-void open_file(Editor *editor, char* filepath){
+void open_file(Editor *editor, Command_Box *cmd_box, char* filepath){
     editor->file_path = filepath;
 
     FILE *f = fopen(filepath, "r");
@@ -180,13 +229,29 @@ void open_file(Editor *editor, char* filepath){
         return; // TODO: HAVE A POPUP THAT DISPLAYS ERROR  
     } 
 
+    Strung buf = strung_init("");
+
     char buffer[1024];
 
     strung_reset(&editor->text);
 
     while(fgets(buffer, sizeof(buffer), f)){
-        strung_append(&editor->text, buffer);
+        strung_append(&buf, buffer);
     }
+
+    if(buf.size > 5){
+        if(strcmp(strung_substr(&buf, 0, 5), "PASS ") == 0){
+            cmdbox_reinit(cmd_box, "Enter Password:", CMD_PASS_ENTER);
+            cmd_box->in_command = true;
+            return;
+        }else{
+            strung_append(&editor->text, buf.data);
+        }
+    }else {
+        strung_append(&editor->text, buf.data);
+    }
+
+
 
     editor->cursor.pos_in_text = 0;
     editor->cursor.pos_in_line = 0;
@@ -206,7 +271,21 @@ void save_file(Editor *editor){
         return; // TODO: HAVE A POPUP THAT DISPLAYS ERROR
     }
 
-    fprintf(f, "%s", editor->text.data); 
+    if(editor->file_password){
+        unsigned char hash[EVP_MAX_MD_SIZE];
+        unsigned int hash_len;
+
+        hash_password(editor->file_password, hash, &hash_len);
+        fprintf(f, "PASS ");
+        for (int i = 0; i < hash_len; ++i) {
+            fprintf(f, "%02x", hash[i]);
+        }
+        fprintf(f, "\n");
+        file_encrypt(editor, f);
+    }else{
+        fprintf(f, "%s", editor->text.data); 
+    }
+
     
     fclose(f); 
 

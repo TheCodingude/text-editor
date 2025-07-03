@@ -6,7 +6,8 @@ typedef enum{
     CMD_TERM, // run a shell command
     CMD_QUIT, // exiting the program
     CMD_OPENF, // opening a file
-    CMD_PASS // password protection on the file
+    CMD_PASS_SET, // password protection on the file
+    CMD_PASS_ENTER
 }Command_type;
 
 typedef struct{
@@ -25,6 +26,7 @@ void cmdbox_reinit(Command_Box *cmd_box, char* new_prompt, Command_type type){
     cmd_box->type = type;
 }
 
+#include "filestuff.h"
 
 void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box, File_Browser *fb){
 
@@ -69,7 +71,7 @@ void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box, File_Browser *fb
             cmd_box->cursor = fb->relative_path.size;
         }
         else if(strcmp(tokens[0]->data, "protect") == 0){
-            cmdbox_reinit(cmd_box, "Enter Password:", CMD_PASS);
+            cmdbox_reinit(cmd_box, "Enter Password:", CMD_PASS_SET);
         }
         else{
             // doing nothing cause running a shell command by default seems kinda annoying 
@@ -101,7 +103,7 @@ void cmdbox_command(Editor* editor, Command_Box *cmd_box, File_Browser *fb){ // 
             break;
         case CMD_OPENF:
             char buffer[PATH_MAX];
-            open_file(editor, cmd_box->command_text.data);
+            open_file(editor, cmd_box, cmd_box->command_text.data);
             if(realpath(cmd_box->command_text.data, buffer)){
                 strung_reset(&fb->relative_path);
                 strung_append(&fb->relative_path, buffer);
@@ -115,9 +117,12 @@ void cmdbox_command(Editor* editor, Command_Box *cmd_box, File_Browser *fb){ // 
             } 
             cmd_box->in_command = false;
             break;
-        case CMD_PASS:
-            file_password_protect(editor, cmd_box->command_text.data);
+        case CMD_PASS_SET:
+            editor->file_password = cmd_box->command_text.data;
             break;
+        case CMD_PASS_ENTER:
+            printf("%s", cmd_box->command_text.data);
+            break;    
         default:
             printf("Dont forget to break\n");
             break;
