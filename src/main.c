@@ -18,6 +18,8 @@
 #define STRUNG_IMPLEMENTATION
 #include "strung.h"
 
+
+
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
@@ -226,12 +228,13 @@ void editor_recalculate_lines(Editor *editor);
 void ensure_cursor_visible(Editor *editor);
 void editor_center_cursor(Editor *editor);
 
+#define WHITE vec4f(1.0f, 1.0f, 1.0f, 1.0f)
 
 #include "la.c"
 #include "command_box.c"
+#include "lexer.c"
 
 
-#define WHITE vec4f(1.0f, 1.0f, 1.0f, 1.0f)
 #define LINE_NUMS_OFFSET (FONT_WIDTH * editor.scale) * 5.0f + 10.0f
 #define LINE_NUMS_OFFSETP (FONT_WIDTH * editor->scale) * 5.0f + 10.0f // WHY CAN'T THIS DAMN LANGAUGE JUST AUTO DE-REFERENCE
 
@@ -287,7 +290,7 @@ void draw_char(char c, float x, float y, float scale, Vec4f color) {
 }
 
 
-
+#if 0
 void renderTextScrolled(Editor* editor, float x, float y, float scale, Vec4f color) {
     int w, h;
     SDL_GetWindowSize(editor->window, &w, &h);
@@ -346,6 +349,80 @@ void renderTextScrolled(Editor* editor, float x, float y, float scale, Vec4f col
         ++current_line;
     }
 }
+#else
+void renderTextScrolled(Editor* editor, float x, float y, float scale, Vec4f color) {
+    int w, h;
+    SDL_GetWindowSize(editor->window, &w, &h);
+    int line_height = FONT_HEIGHT * scale;
+    int max_lines = h / line_height;
+
+    int scroll_y = editor->scroll.y_offset;
+    int scroll_x = editor->scroll.x_offset;
+
+    float base_x = LINE_NUMS_OFFSETP;
+    float draw_y = y;
+
+    const char* ptr = editor->text.data;
+    int line = 0;
+
+    // Skip to scroll_y
+    while (line < scroll_y && *ptr) {
+        if (*ptr++ == '\n') ++line;
+    }
+
+    int current_line = 0;
+    while (*ptr && current_line < max_lines) {
+        float draw_x = base_x;
+        const char* line_start = ptr;
+
+        // Find end of line
+        while (*ptr && *ptr != '\n') ++ptr;
+        int line_len = ptr - line_start;
+
+        // Check for preprocessor directive
+        if (is_preprocessor_directive(line_start, line_len)) {
+            Vec4f color = vec4f(0.6f, 0.8f, 1.0f, 1.0f);  // cyan-ish
+            for (int i = 0; i < line_len; ++i) {
+                char c = line_start[i];
+                if (!glyph_cache[(unsigned char)c]) cache_glyph(c, font);
+                Glyph* g = glyph_cache[(unsigned char)c];
+                float advance = g ? g->advance * scale : FONT_WIDTH * scale;
+                if (i >= scroll_x) {
+                    draw_char(c, draw_x, draw_y, scale, color);
+                }
+                draw_x += advance;
+            }
+        } else {
+            // Token-based parsing
+            const char* p = line_start;
+            int col = 0;
+            while (p < ptr) {
+                Token tok = next_token(p);
+                if (tok.length <= 0) break;
+
+                Vec4f color = token_color(tok.type);
+                for (int i = 0; i < tok.length; ++i) {
+                    char c = tok.start[i];
+                    if (!glyph_cache[(unsigned char)c]) cache_glyph(c, font);
+                    Glyph* g = glyph_cache[(unsigned char)c];
+                    float advance = g ? g->advance * scale : FONT_WIDTH * scale;
+                    if (col >= scroll_x) {
+                        draw_char(c, draw_x, draw_y, scale, color);
+                    }
+                    draw_x += advance;
+                    col++;
+                }
+                p += tok.length;
+            }
+        }
+
+        if (*ptr == '\n') ++ptr;
+        draw_y += line_height;
+        ++current_line;
+    }
+}
+
+#endif
 
 
 void renderText(char* text, float x, float y, float scale, Vec4f color) {
