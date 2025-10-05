@@ -7,7 +7,8 @@ typedef enum{
     CMD_QUIT, // exiting the program
     CMD_OPENF, // opening a file
     CMD_PASS_SET, // password protection on the file
-    CMD_PASS_ENTER
+    CMD_PASS_ENTER,
+    CMD_FONT_CHANGE // changes font (obviously)
 }Command_type;
 
 typedef struct{
@@ -74,6 +75,28 @@ void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box, File_Browser *fb
         else if(strcmp(tokens[0]->data, "protect") == 0){
             cmdbox_reinit(cmd_box, "Enter Password:", CMD_PASS_SET);
         }
+        else if(strcmp(tokens[0]->data, "font") == 0){
+            if(token_count < 2){
+                cmdbox_reinit(cmd_box, "Choose a font: ", CMD_FONT_CHANGE);
+            } else{
+                char buf[100];
+
+                snprintf(buf, 100, "./fonts/%s.ttf", tokens[1]->data);
+
+                printf("|%s|", buf);
+
+                font = TTF_OpenFont(buf, 48);   
+
+                memset(glyph_cache, 0, sizeof(Glyph));
+
+                for(char i = 33; i <= 127; i++){
+                    cache_glyph(i, font);
+                }
+                cmdbox_reinit(cmd_box, "Enter Command: ", CMD_NONE);
+            }
+
+
+        }
         else{
             // doing nothing cause running a shell command by default seems kinda annoying 
         }
@@ -124,6 +147,8 @@ void cmdbox_command(Editor* editor, Command_Box *cmd_box, File_Browser *fb){ // 
         case CMD_PASS_ENTER:
             printf("%s", cmd_box->command_text.data);
             break;    
+        case CMD_FONT_CHANGE:
+            break;
         default:
             printf("Dont forget to break\n");
             break;

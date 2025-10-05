@@ -229,6 +229,7 @@ void ensure_cursor_visible(Editor *editor);
 void editor_center_cursor(Editor *editor);
 
 #define WHITE vec4f(1.0f, 1.0f, 1.0f, 1.0f)
+TTF_Font *font; // global font for now
 
 #include "la.c"
 #include "command_box.c"
@@ -261,7 +262,6 @@ GLuint create_texture_from_surface(SDL_Surface* surface) {
 
 #define FONT_WIDTH 36
 #define FONT_HEIGHT 60
-TTF_Font *font; // global font for now
 
 void draw_char(char c, float x, float y, float scale, Vec4f color) {
     if ((unsigned char)c >= GLYPH_CACHE_SIZE) return;
@@ -1112,7 +1112,12 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    font = TTF_OpenFont("./MapleMono-Regular.ttf", 48); 
+    font = TTF_OpenFont("./fonts/MapleMono-Regular.ttf", 48); 
+
+    if(font == NULL){
+        fprintf(stderr, "Failed to open font, closing application\n");
+        exit(1);
+    }
     // i dont like the way that '#' look in this font so it WILL be changed later
     // TODO: Have different fonts that are loadable while the application is open
 
@@ -1130,7 +1135,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    editor.window = SDL_CreateWindow("Basic Text Editor",
+    editor.window = SDL_CreateWindow("Basic(?) Code Editor",
                                           SDL_WINDOWPOS_CENTERED,
                                           SDL_WINDOWPOS_CENTERED,
                                           WINDOW_WIDTH, WINDOW_HEIGHT,
