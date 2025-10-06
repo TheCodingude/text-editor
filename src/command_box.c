@@ -83,16 +83,24 @@ void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box, File_Browser *fb
 
                 snprintf(buf, 100, "./fonts/%s.ttf", tokens[1]->data);
 
-                printf("|%s|", buf);
+                TTF_Font* fon = TTF_OpenFont(buf, 48);  // use a temp so if it fails i just keep the current one
 
-                font = TTF_OpenFont(buf, 48);   
-
-                memset(glyph_cache, 0, sizeof(Glyph));
-
-                for(char i = 33; i <= 127; i++){
-                    cache_glyph(i, font);
+                if (!fon){ 
+                    fprintf(stderr, "TTF_OpenFont: %s\n", TTF_GetError());
+                    cmdbox_reinit(cmd_box, "Enter Command: ", CMD_NONE);
+                    cmd_box->in_command = false;
+                    return; 
+                } else{
+                    font = fon;
                 }
+
+                memset(glyph_cache, 0, sizeof(glyph_cache));
+
+                for (int i = 33; i <= 127; ++i) {cache_glyph((char)i, font);}
+                    
+
                 cmdbox_reinit(cmd_box, "Enter Command: ", CMD_NONE);
+                cmd_box->in_command = false;
             }
 
 
