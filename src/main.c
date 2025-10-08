@@ -232,6 +232,7 @@ void editor_center_cursor(Editor *editor);
 TTF_Font *font; // global font for now
 
 #include "la.c"
+#include "settings.c"
 #include "command_box.c"
 #include "lexer.c"
 
@@ -1095,12 +1096,18 @@ void redo(Editor* editor) {
 
 
 int main(int argc, char *argv[]) {
+    Settings settings = load_settings();
+
+
     Editor editor = {.cursor = {0}, 
                     .file_path = "", 
                     .text = strung_init(""),  
                     .lines = {0},
-                    .scale = 0.3f
+                    .scale = settings.editor_scale
     };
+
+
+
 
     char buffer[PATH_MAX];
     if(!(realpath(".", buffer))) fprintf(stderr, "Failed, A lot (at opening init directory)\n");
@@ -1112,10 +1119,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    font = TTF_OpenFont("./fonts/MapleMono-Regular.ttf", 48); 
+    font = TTF_OpenFont(settings.path_to_font, 48); 
 
     if(font == NULL){
-        fprintf(stderr, "Failed to open font, closing application\n");
+        fprintf(stderr, "Failed to open font %s, closing application\n", settings.path_to_font);
         exit(1);
     }
     // i dont like the way that '#' look in this font so it WILL be changed later
