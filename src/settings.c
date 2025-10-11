@@ -5,7 +5,7 @@
 #define DEFAULT_PATH_TO_FONT "fonts/MapleMono-Regular.ttf"
 #define DEFAULT_EDITOR_SCALE 0.3f
 
-
+#define SETTINGS_COUNT 2
 
 typedef struct{
     char* path_to_font;
@@ -49,6 +49,9 @@ Settings load_settings(){
         int token_count = 0;
         Strung** tokens = strung_split_by_delim(lines[i], '|', &token_count);
         
+        if(token_count < 2) continue;
+
+
         if (strcmp(tokens[0]->data, "font") == 0){
             settings.path_to_font = tokens[1]->data;
         } 
@@ -64,8 +67,20 @@ Settings load_settings(){
 }
 
 
-void save_settings(const Settings settings){
+void update_and_save_settings(const Settings settings, const Editor editor){
     
+    FILE* f = fopen("editor_settings", "w");
+
+
+    fprintf(f, "font|%s\n"
+               "ed-scale|%f\n"
+            ,            
+            settings.path_to_font,
+            editor.scale
+            );
+
+
+
 }
 
 

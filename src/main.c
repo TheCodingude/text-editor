@@ -1096,8 +1096,8 @@ void redo(Editor* editor) {
 
 
 int main(int argc, char *argv[]) {
+    
     Settings settings = load_settings();
-
 
     Editor editor = {.cursor = {0}, 
                     .file_path = "", 
@@ -1238,7 +1238,7 @@ int main(int argc, char *argv[]) {
                         break;
                     case SDLK_RETURN:
                         if(cmd_box.in_command){ // idk the order i should focus these 
-                            cmdbox_command(&editor, &cmd_box, &fb);
+                            cmdbox_command(&editor, &cmd_box, &fb, &settings);
                         }
                         else if(fb.new_file){
                             if(fb.new_file_path.size > 0){
@@ -1460,7 +1460,7 @@ int main(int argc, char *argv[]) {
                             break;
                         case SDLK_RETURN:
                             if(cmd_box.in_command){ 
-                                cmdbox_command(&editor, &cmd_box, &fb);
+                                cmdbox_command(&editor, &cmd_box, &fb, &settings);
                             }else{
                                 save_undo_state(&editor);
                                 strung_insert_char(&editor.text, '\n', editor.cursor.pos_in_text);
@@ -1965,6 +1965,7 @@ int main(int argc, char *argv[]) {
     }
     }
 
+    update_and_save_settings(settings, editor);
 
     return 0;
 }

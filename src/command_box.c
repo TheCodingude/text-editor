@@ -29,7 +29,7 @@ void cmdbox_reinit(Command_Box *cmd_box, char* new_prompt, Command_type type){
 
 #include "filestuff.h"
 
-void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box, File_Browser *fb){
+void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box, File_Browser *fb, Settings* settings){
 
     if(cmd_box->type == CMD_NONE){
         Strung command = strung_copy(&cmd_box->command_text);
@@ -92,11 +92,16 @@ void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box, File_Browser *fb
                     return; 
                 } else{
                     font = fon;
+
+                    
+                    settings->path_to_font = strung_init(buf).data;  // this dumb shit worked so i dont even care
+
+                    memset(glyph_cache, 0, sizeof(glyph_cache));
+    
+                    for (int i = 33; i <= 127; ++i) {cache_glyph((char)i, font);}
                 }
 
-                memset(glyph_cache, 0, sizeof(glyph_cache));
-
-                for (int i = 33; i <= 127; ++i) {cache_glyph((char)i, font);}
+                
                     
 
                 cmdbox_reinit(cmd_box, "Enter Command: ", CMD_NONE);
@@ -115,17 +120,17 @@ void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box, File_Browser *fb
 
 }
 
-void cmdbox_command(Editor* editor, Command_Box *cmd_box, File_Browser *fb){ // editor is passed so we can manipulate it 
+void cmdbox_command(Editor* editor, Command_Box *cmd_box, File_Browser *fb, Settings* settings){ // editor is passed so we can manipulate it 
 
     switch(cmd_box->type){
         case CMD_NONE:
-            cmdbox_parse_command(editor, cmd_box, fb);
+            cmdbox_parse_command(editor, cmd_box, fb, settings);
             break;
         case CMD_JMP:
             int line = atoi(cmd_box->command_text.data) - 1;
             editor->cursor.line = line;
             editor->cursor.pos_in_line = 0;
-            editor->cursor.pos_in_text = editor->lines.lines[editor->cursor.line].start;
+            editor->cursor.pos_in_text = editor->lines.lines[editor->cursor.line].start; // readable
             editor_center_cursor(editor);
             cmd_box->in_command = false;
             break;
