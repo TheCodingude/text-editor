@@ -92,8 +92,10 @@ void update_and_save_settings(const Settings settings, const Editor editor){
     FILE* f = fopen("editor_settings", "w");
 
 
-    fprintf(f, "font|%s\n"
+    fprintf(f, "// General Settings\n"
+               "font|%s\n"
                "ed-scale|%f\n"
+               "\n// Previous State\n"
                "last_opened_file|%s\n"
                "cur_pos_in_text|%i\n"
                "cur_pos_in_line|%i\n"
