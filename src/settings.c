@@ -43,6 +43,11 @@ Settings load_settings(Editor* editor, Command_Box* cmd){
 
     for(int i = 0; i < line_count; i++){
         // god i wish switch statements worked for strings 
+
+        if(strung_starts_with(lines[i], "//")){
+            continue;
+        }
+
         int token_count = 0;
         Strung** tokens = strung_split_by_delim(lines[i], '|', &token_count);
         
