@@ -7,14 +7,11 @@
 
 #define SETTINGS_COUNT 2
 
-typedef struct{
-    char* path_to_font;
-    float editor_scale;
-}Settings;
 
 
 
-Settings load_settings(){
+
+Settings load_settings(Editor* editor, Command_Box* cmd){
 
     // put all setting defaults in and just change them as needed 
     // this might be a good approach or maybe not i have no idea 
@@ -58,6 +55,24 @@ Settings load_settings(){
         else if(strcmp(tokens[0]->data, "ed-scale") == 0){
             settings.editor_scale = atof(tokens[1]->data);
         }
+        else if(strcmp(tokens[0]->data, "last_opened_file") == 0){
+            open_file(editor, cmd, tokens[1]->data);
+        }
+        else if(strcmp(tokens[0]->data, "cur_pos_in_text") == 0){
+            editor->cursor.pos_in_text = atoi(tokens[1]->data);
+        }
+        else if(strcmp(tokens[0]->data, "cur_pos_in_line") == 0){
+            editor->cursor.pos_in_line = atoi(tokens[1]->data);
+        }
+        else if(strcmp(tokens[0]->data, "cur_line") == 0){
+            editor->cursor.line = atoi(tokens[1]->data);
+        }
+        else if(strcmp(tokens[0]->data, "scroll_x") == 0){
+            editor->scroll.x_offset = atoi(tokens[1]->data);
+        }
+        else if(strcmp(tokens[0]->data, "scroll_y") == 0){
+            editor->scroll.y_offset = atoi(tokens[1]->data);
+        }
     }
 
 
@@ -74,9 +89,21 @@ void update_and_save_settings(const Settings settings, const Editor editor){
 
     fprintf(f, "font|%s\n"
                "ed-scale|%f\n"
+               "last_opened_file|%s\n"
+               "cur_pos_in_text|%i\n"
+               "cur_pos_in_line|%i\n"
+               "cur_line|%i\n"
+               "scroll_x|%i\n"
+               "scroll_y|%i\n"
             ,            
             settings.path_to_font,
-            editor.scale
+            editor.scale,
+            editor.file_path,
+            editor.cursor.pos_in_text,
+            editor.cursor.pos_in_line,
+            editor.cursor.line,
+            editor.scroll.x_offset,
+            editor.scroll.y_offset
             );
 
 

@@ -231,11 +231,16 @@ void editor_center_cursor(Editor *editor);
 #define WHITE vec4f(1.0f, 1.0f, 1.0f, 1.0f)
 TTF_Font *font; // global font for now
 
+typedef struct{
+    char* path_to_font;
+    float editor_scale;
+}Settings;
+
 #include "la.c"
-#include "settings.c"
 #include "command_box.c"
 #include "lexer.c"
 
+#include "settings.c"
 
 #define LINE_NUMS_OFFSET (FONT_WIDTH * editor.scale) * 5.0f + 10.0f
 #define LINE_NUMS_OFFSETP (FONT_WIDTH * editor->scale) * 5.0f + 10.0f // WHY CAN'T THIS DAMN LANGAUGE JUST AUTO DE-REFERENCE
@@ -1097,13 +1102,13 @@ void redo(Editor* editor) {
 
 int main(int argc, char *argv[]) {
     
-    Settings settings = load_settings();
-
-    Editor editor = {.cursor = {0}, 
-                    .file_path = "", 
-                    .text = strung_init(""),  
-                    .lines = {0},
-                    .scale = settings.editor_scale
+    
+    Editor editor = {
+        .cursor = {0}, 
+        .file_path = "", 
+        .text = strung_init(""),  
+        .lines = {0},
+        .scale = DEFAULT_EDITOR_SCALE
     };
 
 
@@ -1113,6 +1118,10 @@ int main(int argc, char *argv[]) {
     if(!(realpath(".", buffer))) fprintf(stderr, "Failed, A lot (at opening init directory)\n");
     File_Browser fb = {.relative_path = strung_init(buffer), .scale = 0.5f, .new_file_path = strung_init(""), .copied_file_contents = strung_init_custom("", 1024)};
     strung_append_char(&fb.relative_path, '/');
+
+    Command_Box cmd_box = {.command_text = strung_init("")};
+    
+    Settings settings = load_settings(&editor, &cmd_box);
 
     if(TTF_Init() < 0){
         fprintf(stderr, "Failed to initilize TTF\n");
@@ -1128,7 +1137,6 @@ int main(int argc, char *argv[]) {
     // i dont like the way that '#' look in this font so it WILL be changed later
     // TODO: Have different fonts that are loadable while the application is open
 
-    Command_Box cmd_box = {.command_text = strung_init("")};
 
     bool line_switch = false;
 
