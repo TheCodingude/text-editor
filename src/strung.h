@@ -46,8 +46,9 @@ Strung** strung_split_by_multiple_delims(const Strung *input, const char* delims
 void     strung_split_free(Strung** tokens, int count);
 
 /* Search */
-int strung_search_left(const Strung* str, char search);  /* first index or -1 */
-int strung_search_right(const Strung* str, char search); /* last index or -1 */
+int strung_search_left(const Strung* str, char search);  // first index or -1 
+int strung_search_right(const Strung* str, char search); // last index or -1 
+int strung_starts_with(const Strung* str, char* prefix); // 0 (false), 1 (true) or -1 (error)
 
 #endif /* STRUNG_H_ */
 
@@ -401,6 +402,21 @@ int strung_search_right(const Strung* str, char search){
         if (str->data[i] == search) return i;
     }
     return -1;
+}
+
+int strung_starts_with(const Strung* str, char* prefix){
+    int pre_size = strlen(prefix);
+    if(pre_size < 1){
+        return -1;
+    }
+
+    for(int i = 0; i < pre_size; i++){
+        if(str->data[i] == prefix[i]){
+            continue;
+        }
+        return 0;
+    }
+    return 1;
 }
 
 Strung** strung_split_by_multiple_delims(const Strung *input, const char* delims, int *out_count) {
