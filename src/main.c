@@ -243,7 +243,34 @@ typedef struct{
 #include "settings.c"
 
 #define LINE_NUMS_OFFSET (FONT_WIDTH * editor.scale) * 5.0f + 10.0f
-#define LINE_NUMS_OFFSETP (FONT_WIDTH * editor->scale) * 5.0f + 10.0f // WHY CAN'T THIS DAMN LANGAUGE JUST AUTO DE-REFERENCE
+// #define LINE_NUMS_OFFSETP (FONT_WIDTH * editor->scale) * 5.0f + 10.0f // WHY CAN'T THIS DAMN LANGAUGE JUST AUTO DE-REFERENCE
+
+
+#define LINE_NUMS_OFFSETP 48  
+
+
+// Returns the *scaled* horizontal advance for `ch`, including kerning against `prev` when enabled.
+static inline float
+ttf_advance_with_kerning(TTF_Font* font, unsigned char prev, unsigned char ch, float scale)
+{
+    int minx, maxx, miny, maxy, advance = 0;
+    if (TTF_GlyphMetrics(font, (Uint16)ch, &minx, &maxx, &miny, &maxy, &advance) != 0) {
+        int space_adv = 0, dummy;
+        if (TTF_GlyphMetrics(font, (Uint16)' ', &dummy, &dummy, &dummy, &dummy, &space_adv) != 0)
+            space_adv = 8;
+        advance = (ch == '\t') ? (space_adv * 4) : space_adv;
+    }
+
+#if SDL_TTF_VERSION_ATLEAST(2,0,18)
+    if (prev && TTF_GetFontKerning(font)) {
+        int kern = TTF_GetFontKerningSizeGlyphs(font, (Uint16)prev, (Uint16)ch);
+        advance += kern;
+    }
+#endif
+
+    return advance * scale;
+}
+
 
 
 GLuint create_texture_from_surface(SDL_Surface* surface) {
@@ -545,40 +572,59 @@ void render_selection(Editor *editor, float scale, Scroll *scroll) {
 
 
 
-void editor_move_cursor_to_click(Editor* editor, int x, int y, float scale) {
-    int line_height = FONT_HEIGHT * scale;
-    int relative_y = y - 10;
-    int clicked_line = (relative_y / line_height) + editor->scroll.y_offset;
+// Snap to next tab stop using a fixed tab cell width
+static inline float
+next_tab_stop(float x, float tab_width)
+{
+    float next = floorf(x / tab_width + 1.0f) * tab_width;
+    return next;
+}
 
-    // Clamp line
+void editor_move_cursor_to_click(Editor* editor, int x, int y, float scale, TTF_Font* font)
+{
+    const int line_skip = (int)llroundf(TTF_FontLineSkip(font) * scale);
+    const int relative_y = y - 10;
+    int clicked_line = (relative_y / (line_skip > 0 ? line_skip : 1)) + editor->scroll.y_offset + 1;
+
     if (clicked_line < 0) clicked_line = 0;
-    if (clicked_line >= (int)editor->lines.size) clicked_line = editor->lines.size - 1;
+    if (clicked_line >= (int)editor->lines.size) clicked_line = (int)editor->lines.size - 1;
 
     Line line = editor->lines.lines[clicked_line];
     int line_length = line.end - line.start;
     const char* line_ptr = &editor->text.data[line.start];
 
-    float relative_x = x - LINE_NUMS_OFFSETP;
-    if (relative_x < 0) {
-        editor->cursor.pos_in_text = line.start;
-        editor->cursor.pos_in_line = 0;
+    float relative_x = (float)x - (float)LINE_NUMS_OFFSETP;
+    if (relative_x < 0.0f) {
         editor->cursor.line = clicked_line;
+        editor->cursor.pos_in_line = 0;
+        editor->cursor.pos_in_text = line.start;
         return;
     }
 
+    // Tab width (e.g., 4 spaces)
+    int space_adv = 0, dummy;
+    if (TTF_GlyphMetrics(font, (Uint16)' ', &dummy, &dummy, &dummy, &dummy, &space_adv) != 0)
+        space_adv = 8;
+    float tab_width = space_adv * 4 * scale;
+
     float current_x = 0.0f;
     int best_col = 0;
-    float best_dist = 1e9;
+    float best_dist = 1e30f;
+    unsigned char prev = 0;
 
     for (int col = 0; col <= line_length; ++col) {
         float mid_x = current_x;
 
         if (col < line_length) {
-            char c = line_ptr[col];
-            if (!glyph_cache[(unsigned char)c]) cache_glyph(c, font);
-            Glyph* g = glyph_cache[(unsigned char)c];
-            float advance = g ? g->advance * scale : FONT_WIDTH * scale;
-            mid_x += advance / 2.0f;
+            unsigned char ch = (unsigned char)line_ptr[col];
+            float adv;
+
+            if (ch == '\t')
+                adv = next_tab_stop(current_x, tab_width) - current_x;
+            else
+                adv = ttf_advance_with_kerning(font, prev, ch, scale);
+
+            mid_x += adv * 0.5f;
         }
 
         float dist = fabsf(mid_x - relative_x);
@@ -588,9 +634,14 @@ void editor_move_cursor_to_click(Editor* editor, int x, int y, float scale) {
         }
 
         if (col < line_length) {
-            char c = line_ptr[col];
-            Glyph* g = glyph_cache[(unsigned char)c];
-            current_x += g ? g->advance * scale : FONT_WIDTH * scale;
+            unsigned char ch = (unsigned char)line_ptr[col];
+            if (ch == '\t') {
+                current_x = next_tab_stop(current_x, tab_width);
+                prev = 0;
+            } else {
+                current_x += ttf_advance_with_kerning(font, prev, ch, scale);
+                prev = ch;
+            }
         }
     }
 
@@ -598,7 +649,6 @@ void editor_move_cursor_to_click(Editor* editor, int x, int y, float scale) {
     editor->cursor.pos_in_line = best_col;
     editor->cursor.pos_in_text = line.start + best_col;
 }
-
 
 
 void clamp_scroll(Editor *editor, Scroll *scroll, float scale) {
@@ -1881,7 +1931,7 @@ int main(int argc, char *argv[]) {
                         abs(event.button.y - last_click_y) < double_click_distance);
 
                     if (is_double_click) {
-                        editor_move_cursor_to_click(&editor, event.button.x, event.button.y,editor.scale);
+                        editor_move_cursor_to_click(&editor, event.button.x, event.button.y,editor.scale, font);
 
                         // Find word boundaries
                         int start = editor.cursor.pos_in_text;
@@ -1913,7 +1963,7 @@ int main(int argc, char *argv[]) {
                         editor.selection = false;
                         editor.selection_start = 0;
                         editor.selection_end = 0;
-                        editor_move_cursor_to_click(&editor, event.button.x, event.button.y,editor.scale);
+                        editor_move_cursor_to_click(&editor, event.button.x, event.button.y,editor.scale, font);
                     }
                     last_click_time = now;
                     last_click_x = event.button.x;
