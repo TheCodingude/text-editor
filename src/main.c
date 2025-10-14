@@ -1994,6 +1994,9 @@ int main(int argc, char *argv[]) {
             render_file_browser(&editor, &fb);
         }
         else {
+            if(editor.file_path[0] == '\0'){
+                renderText("Please open a file", 50, 20, 0.5f, WHITE);
+            }
             renderTextScrolled(&editor, LINE_NUMS_OFFSET, 10.0f,editor.scale, WHITE);
             render_scrollbar(&editor,editor.scale);
             render_line_numbers(&editor,editor.scale);
@@ -2005,10 +2008,6 @@ int main(int argc, char *argv[]) {
             render_command_box(&editor, &cmd_box);
         }else{
             if(!fb.file_browser) renderCursorScrolled(&editor,editor.scale, &editor.scroll);
-        }
-        
-        if(editor.file_path[0] == '\0'){
-            renderText("Please open a file", 50, 20, 0.5f, WHITE);
         }
 
         
