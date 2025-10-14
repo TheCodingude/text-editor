@@ -582,6 +582,10 @@ next_tab_stop(float x, float tab_width)
 
 void editor_move_cursor_to_click(Editor* editor, int x, int y, float scale, TTF_Font* font)
 {
+    if(editor->text.size < 1){
+        return;
+    }
+
     const int line_skip = (int)llroundf(TTF_FontLineSkip(font) * scale);
     const int relative_y = y - 10;
     int clicked_line = (relative_y / (line_skip > 0 ? line_skip : 1)) + editor->scroll.y_offset + 1;
@@ -2003,6 +2007,9 @@ int main(int argc, char *argv[]) {
             if(!fb.file_browser) renderCursorScrolled(&editor,editor.scale, &editor.scroll);
         }
         
+        if(editor.file_path[0] == '\0'){
+            renderText("Please open a file", 50, 20, 0.5f, WHITE);
+        }
 
         
 
