@@ -1149,6 +1149,25 @@ void redo(Editor* editor) {
 
 }
 
+bool keybind_matches(const SDL_Event *event, const Keybind *kb)
+{
+    if (event->type != SDL_KEYDOWN)
+        return false;
+
+    if (event->key.keysym.sym != kb->key)
+        return false;
+
+    SDL_Keymod mods = event->key.keysym.mod;
+
+    bool ctrl_held  = mods & KMOD_CTRL;
+    bool shift_held = mods & KMOD_SHIFT;
+    bool alt_held   = mods & KMOD_ALT;
+
+    return (ctrl_held  == kb->ctrl) &&
+           (shift_held == kb->shift) &&
+           (alt_held   == kb->alt);
+}
+
 
 int main(int argc, char *argv[]) {
     
@@ -1161,7 +1180,13 @@ int main(int argc, char *argv[]) {
         .scale = DEFAULT_EDITOR_SCALE
     };
 
-
+    Keybind keybind = {
+        .key = SDLK_o, 
+        .ctrl = false, 
+        .shift = false, 
+        .alt = false
+    };
+    
 
 
     char buffer[PATH_MAX];
@@ -1275,59 +1300,59 @@ int main(int argc, char *argv[]) {
                     }
                 }
             } else if (event.type == SDL_KEYDOWN) {
-                if (fb.file_browser){
-                    switch (event.key.keysym.sym)
-                    {
-                    case SDLK_F2:
+                if (fb.file_browser) {
+                    SDL_Keycode key = event.key.keysym.sym;
+
+                    if (key == SDLK_F2) {
                         fb.file_browser = false;
-                        break;
-                    case SDLK_ESCAPE:
+
+                    } else if (key == SDLK_ESCAPE) {
                         running = false;
-                        break;
-                    case SDLK_UP:
+
+                    } else if (key == SDLK_UP) {
                         if (fb.cursor > 0 && !fb.renaming) fb.cursor--;
-                        break;
-                    case SDLK_DOWN:
-                        if(fb.cursor < fb.items.count - 1 && !fb.renaming) fb.cursor++;
-                        break;
-                    case SDLK_BACKSPACE:
-                        if((fb.new_file || fb.renaming) && fb.new_file_path.size > 0) strung_remove_char(&fb.new_file_path, fb.new_file_path.size - 1);
-                        else{strung_remove_char(&fb.search_buffer, fb.search_buffer.size-1);};
-                        break;
-                    case SDLK_RETURN:
-                        if(cmd_box.in_command){ // idk the order i should focus these 
+
+                    } else if (key == SDLK_DOWN) {
+                        if (fb.cursor < fb.items.count - 1 && !fb.renaming) fb.cursor++;
+
+                    } else if (key == SDLK_BACKSPACE) {
+                        if ((fb.new_file || fb.renaming) && fb.new_file_path.size > 0)
+                            strung_remove_char(&fb.new_file_path, fb.new_file_path.size - 1);
+                        else
+                            strung_remove_char(&fb.search_buffer, fb.search_buffer.size - 1);
+
+                    } else if (key == SDLK_RETURN) {
+                        if (cmd_box.in_command){ // idk the order i should focus these
                             cmdbox_command(&editor, &cmd_box, &fb, &settings);
-                        }
-                        else if(fb.new_file){
-                            if(fb.new_file_path.size > 0){
+                        } else if (fb.new_file){
+                            if (fb.new_file_path.size > 0){
                                 Strung final = strung_init("");
                                 strung_append(&final, fb.relative_path.data);
                                 strung_append(&final, fb.new_file_path.data);
-                                if(fb.new_dir){
+                                if (fb.new_dir){
                                     mkdir(final.data, S_IRWXU);
-                                }else{
+                                } else {
                                     create_new_file(final.data);
                                 }
                                 read_entire_dir(&fb);
                             }
                             fb.new_file = false;
                             fb.new_dir = false;
-                        } else if(fb.renaming){
-                            if(fb.new_file_path.size > 0){
+                        } else if (fb.renaming){
+                            if (fb.new_file_path.size > 0){
                                 Strung new_name_path = strung_init("");
                                 strung_append(&new_name_path, fb.relative_path.data);
                                 strung_append(&new_name_path, fb.new_file_path.data);
-    
+
                                 Strung old_name_path = strung_init("");
                                 strung_append(&old_name_path, fb.relative_path.data);
                                 strung_append(&old_name_path, fb.items.items[fb.cursor].name);
-    
-                                if(rename(old_name_path.data, new_name_path.data) != 0) fprintf(stderr, "Failed to rename\n");
+
+                                if (rename(old_name_path.data, new_name_path.data) != 0) fprintf(stderr, "Failed to rename\n");
                                 read_entire_dir(&fb);
                             }
                             fb.renaming = false;
-                        }else{
-                            
+                        } else {
                             char *selected = fb.items.items[fb.cursor].name;
                             if (fb.items.items[fb.cursor].type == DT_REG) {
                                 // Build full path
@@ -1342,43 +1367,38 @@ int main(int argc, char *argv[]) {
                                     fb.file_browser = false;
                                 }
                             } else if (fb.items.items[fb.cursor].type == DT_DIR) {
-                                char *selected = fb.items.items[fb.cursor].name;
-                                if (strcmp(selected, ".") == 0) {
-                                    // Stay in current directory, do nothing
-                                } else if (strcmp(selected, "..") == 0) {
+                                char *sel = fb.items.items[fb.cursor].name;
+                                if (strcmp(sel, ".") == 0) {
+                                    // Stay
+                                } else if (strcmp(sel, "..") == 0) {
                                     // Go up one directory
                                     size_t len = strlen(fb.relative_path.data);
                                     if (len > 1) {
-                                        // Remove trailing slash if present
                                         if (fb.relative_path.data[len - 1] == '/')
                                             fb.relative_path.data[--len] = '\0';
-                                        // Find previous slash
                                         char *slash = strrchr(fb.relative_path.data, '/');
                                         if (slash && slash != fb.relative_path.data) {
                                             *slash = '\0';
                                             len = slash - fb.relative_path.data;
                                         } else {
-                                            // Already at root, stay
                                             fb.relative_path.data[0] = '/';
                                             fb.relative_path.data[1] = '\0';
                                             len = 1;
                                         }
                                     }
-                                    // Ensure trailing slash except for root
                                     if (strcmp(fb.relative_path.data, "/") != 0) {
                                         if (fb.relative_path.data[len - 1] != '/') {
                                             fb.relative_path.data[len] = '/';
                                             fb.relative_path.data[len + 1] = '\0';
                                         }
                                     }
-                                    // Truncate any extra data after the new end
                                     fb.relative_path.size = strlen(fb.relative_path.data);
                                 } else {
                                     // Go into selected directory
                                     size_t len = strlen(fb.relative_path.data);
                                     if (len > 0 && fb.relative_path.data[len - 1] != '/')
                                         strung_append_char(&fb.relative_path, '/');
-                                    strung_append(&fb.relative_path, selected);
+                                    strung_append(&fb.relative_path, sel);
                                     strung_append_char(&fb.relative_path, '/');
                                 }
                                 read_entire_dir(&fb);
@@ -1386,60 +1406,61 @@ int main(int argc, char *argv[]) {
                             }
                         }
                         strung_reset(&fb.search_buffer);
-                        break;
-                    case SDLK_DELETE:
+
+                    } else if (key == SDLK_DELETE) {
 
                         Strung final_path = strung_init("");
                         strung_append(&final_path, fb.relative_path.data);
                         strung_append(&final_path, fb.items.items[fb.cursor].name);
-                        if(!(strcmp(fb.items.items[fb.cursor].name, "..") == 0 || strcmp(fb.items.items[fb.cursor].name, ".") == 0)){
-                            if(fb.items.items[fb.cursor].type == DT_DIR){
+                        if (!(strcmp(fb.items.items[fb.cursor].name, "..") == 0 || strcmp(fb.items.items[fb.cursor].name, ".") == 0)){
+                            if (fb.items.items[fb.cursor].type == DT_DIR){
                                 rmdir(final_path.data);
-                            }else if(fb.items.items[fb.cursor].type == DT_REG){
+                            } else if (fb.items.items[fb.cursor].type == DT_REG){
                                 remove(final_path.data);
                             } else{
                                 fprintf(stderr, "Invalid file type to delete\n");
                             }
-                        }else{
+                        } else{
                             fprintf(stderr, "We do not support deleting current dir or prev dir, for safety reasons\n");
                             fprintf(stderr, "and because i don't know what will happen\n");
                         }
                         read_entire_dir(&fb);
-                        break;
-                    case SDLK_MINUS:
+
+                    } else if (key == SDLK_MINUS) {
                         if (event.key.keysym.mod & KMOD_CTRL) fb.scale -= 0.1;
-                        break;
-                    case SDLK_EQUALS:
+
+                    } else if (key == SDLK_EQUALS) {
                         if (event.key.keysym.mod & KMOD_CTRL) fb.scale += 0.1;
-                        break;
-                    case SDLK_n:
-                        if(event.key.keysym.mod & KMOD_CTRL){
-                            if(event.key.keysym.mod & KMOD_SHIFT){
+
+                    } else if (key == SDLK_n) {
+                        if (event.key.keysym.mod & KMOD_CTRL){
+                            if (event.key.keysym.mod & KMOD_SHIFT){
                                 fb.new_dir = true;
                             }
                             strung_reset(&fb.new_file_path);
                             fb.new_file = true;
                         }
-                        break;
-                    case SDLK_r:
-                        if(CTRL_HELD){
+
+                    } else if (key == SDLK_r) {
+                        if (event.key.keysym.mod & KMOD_CTRL){
                             strung_reset(&fb.new_file_path);
                             strung_append(&fb.new_file_path, fb.items.items[fb.cursor].name);
                             fb.renaming = true;
                         }
-                    case SDLK_c:
-                        if (CTRL_HELD){
+
+                    } else if (key == SDLK_c) {
+                        if (event.key.keysym.mod & KMOD_CTRL){
                             fb.copied_file_name = fb.items.items[fb.cursor].name;
-                            open_file_into_strung(&fb.copied_file_contents, fb.copied_file_name);  // 
+                            open_file_into_strung(&fb.copied_file_contents, fb.copied_file_name);
                         }
-                        break;
-                    case SDLK_v:
-                        if(CTRL_HELD){
+
+                    } else if (key == SDLK_v) {
+                        if (event.key.keysym.mod & KMOD_CTRL){
                             if (fb.copied_file_name != NULL && fb.copied_file_contents.data != NULL) {
                                 Strung final_cpath = strung_init("");
                                 strung_append(&final_cpath, fb.relative_path.data);
                                 strung_append(&final_cpath, fb.copied_file_name);
-                                
+
                                 FILE *f = fopen(final_cpath.data, "w");
                                 if (f) {
                                     fprintf(f, "%s", fb.copied_file_contents.data);
@@ -1452,251 +1473,222 @@ int main(int argc, char *argv[]) {
                                 fprintf(stderr, "No file copied to paste.\n");
                             }
                         }
-                        break;
-                    case SDLK_x:
-                        break;
-                    
-                    default:
-                        break;
+
+                    } else if (key == SDLK_x) {
+                        // cut: (no-op here in your original)
                     }
-                }
-                else {
-                    switch (event.key.keysym.sym) {
-                        case SDLK_BACKSPACE:
-                            if (cmd_box.in_command){
-                                if(cmd_box.cursor > 0){
-                                    strung_remove_char(&cmd_box.command_text, cmd_box.cursor - 1);
-                                    cmd_box.cursor--;
+
+                } else {
+                    SDL_Keycode key = event.key.keysym.sym;
+
+                    if (key == SDLK_BACKSPACE) {
+                        if (cmd_box.in_command){
+                            if(cmd_box.cursor > 0){
+                                strung_remove_char(&cmd_box.command_text, cmd_box.cursor - 1);
+                                cmd_box.cursor--;
+                            }
+                        } else if(editor.selection){
+                            if (editor.selection_end < editor.selection_start) {
+                                int temp = editor.selection_end;
+                                editor.selection_end = editor.selection_start;
+                                editor.selection_start = temp;
+                            }
+                            strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
+                            editor.cursor.pos_in_text = editor.selection_start;
+                            editor.selection = false;
+                            editor.selection_start = 0;
+                            editor.selection_end = 0;
+                            editor_recalc_cursor_pos_and_line(&editor);
+                        } else if (editor.cursor.pos_in_text > 0) {
+                            save_undo_state(&editor);
+
+                            if (editor.text.data[editor.cursor.pos_in_text - 1] == '\n') {
+                                // Move cursor to end of previous line
+                                int pos = editor.cursor.pos_in_text - 2;
+                                int col = 0;
+                                while (pos >= 0 && editor.text.data[pos] != '\n') {
+                                    pos--;
+                                    col++;
                                 }
-                            } else if(editor.selection){
-                                
-                                if (editor.selection_end < editor.selection_start) {
-                                    int temp = editor.selection_end;
-                                    editor.selection_end = editor.selection_start;
-                                    editor.selection_start = temp;
+                                editor.cursor.pos_in_text--;
+                                editor.cursor.line--;
+                                editor.cursor.pos_in_line = col;
+                                strung_remove_char(&editor.text, editor.cursor.pos_in_text);
+                                editor_recalculate_lines(&editor);
+                            } else {
+                                strung_remove_char(&editor.text, editor.cursor.pos_in_text - 1);
+                                editor.cursor.pos_in_text--;
+                                if (editor.cursor.pos_in_line > 0) editor.cursor.pos_in_line--;
+                            }
+                        }
+
+                    } else if (key == SDLK_DELETE) {
+                        if (cmd_box.in_command) {
+                            if (cmd_box.cursor < cmd_box.command_text.size) {
+                                strung_remove_char(&cmd_box.command_text, cmd_box.cursor);
+                            }
+                        } else if (editor.cursor.pos_in_text < editor.text.size) {
+                            save_undo_state(&editor);
+                            strung_remove_char(&editor.text, editor.cursor.pos_in_text);
+                            editor_recalculate_lines(&editor); // Can optimize a bit if i recalculate only when deleting newline
+                        }
+
+                    } else if (key == SDLK_RETURN) {
+                        if(cmd_box.in_command){ 
+                            cmdbox_command(&editor, &cmd_box, &fb, &settings);
+                        } else{
+                            save_undo_state(&editor);
+                            strung_insert_char(&editor.text, '\n', editor.cursor.pos_in_text);
+                            editor.cursor.pos_in_text++;
+                            editor.cursor.line++;
+                            editor.cursor.pos_in_line = 0;
+                            editor_recalculate_lines(&editor);
+                        }
+
+                    } else if (key == SDLK_TAB) {
+                        save_undo_state(&editor);
+                        strung_insert_string(&editor.text, "    ", editor.cursor.pos_in_text);
+                        editor.cursor.pos_in_line += 4;
+                        editor.cursor.pos_in_text += 4;
+
+                    } else if (key == SDLK_HOME) {
+                        editor.cursor.pos_in_text = editor.lines.lines[editor.cursor.line].start;
+                        editor.cursor.pos_in_line = 0;
+
+                    } else if (key == SDLK_END) {
+                        editor.cursor.pos_in_text = editor.lines.lines[editor.cursor.line].end;
+                        editor.cursor.pos_in_line =
+                            editor.lines.lines[editor.cursor.line].end - editor.lines.lines[editor.cursor.line].start;
+
+                    } else if (key == SDLK_F2) {
+                        read_entire_dir(&fb);
+                        fb.file_browser = true;
+                        strung_reset(&fb.search_buffer);
+
+                    } else if (key == SDLK_F3) {
+                        cmdbox_reinit(&cmd_box, "Enter Command:", CMD_NONE);
+                        cmd_box.in_command = !cmd_box.in_command;
+
+                    } else if (key == SDLK_LEFT) {
+                        if (cmd_box.in_command) {
+                            if (cmd_box.cursor > 0) {
+                                cmd_box.cursor--;
+                            }
+                        } else {
+                            bool shift = (event.key.keysym.mod & KMOD_SHIFT);
+                            bool ctrl = (event.key.keysym.mod & KMOD_CTRL);
+                            if (shift) {
+                                if (!editor.selection) {
+                                    editor.selection = true;
+                                    editor.selection_start = editor.cursor.pos_in_text;
                                 }
-                                strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
-                                editor.cursor.pos_in_text = editor.selection_start;
-                                editor.selection = false;
+                            } else {
                                 editor.selection_start = 0;
                                 editor.selection_end = 0;
-                                editor_recalc_cursor_pos_and_line(&editor);
+                                editor.selection = false;
                             }
-                            else if (editor.cursor.pos_in_text > 0) {
-                                    save_undo_state(&editor);
-
-                                if (editor.text.data[editor.cursor.pos_in_text - 1] == '\n') {
-                                    // Move cursor to end of previous line
-                                    int pos = editor.cursor.pos_in_text - 2;
-                                    int col = 0;
-                                    while (pos >= 0 && editor.text.data[pos] != '\n') {
+                            if (ctrl) {
+                                // Move left to previous space or newline
+                                int pos = editor.cursor.pos_in_text;
+                                if (pos > 0) {
+                                    pos--;
+                                    // skip over current spaces or \n
+                                    while (pos > 0 && (editor.text.data[pos] == ' ' || editor.text.data[pos] == '\n')) {
                                         pos--;
-                                        col++;
                                     }
-                                    editor.cursor.pos_in_text--;
-                                    editor.cursor.line--;
-                                    editor.cursor.pos_in_line = col;
-                                    strung_remove_char(&editor.text, editor.cursor.pos_in_text);
-                                    editor_recalculate_lines(&editor);
-                                } else {
-                                    strung_remove_char(&editor.text, editor.cursor.pos_in_text - 1);
-                                    editor.cursor.pos_in_text--;
-                                    if (editor.cursor.pos_in_line > 0) editor.cursor.pos_in_line--;
-                                }
-                            }
-                            break;
-                        case SDLK_DELETE:
-                            if (cmd_box.in_command) {
-                                if (cmd_box.cursor < cmd_box.command_text.size) {
-                                    strung_remove_char(&cmd_box.command_text, cmd_box.cursor);
-                                }
-                            } else if (editor.cursor.pos_in_text < editor.text.size) {
-                                save_undo_state(&editor);
-                                strung_remove_char(&editor.text, editor.cursor.pos_in_text);
-                                editor_recalculate_lines(&editor); // Can optimize a bit if i recalculate only when deleting newline
-                            }
-                            break;
-                        case SDLK_RETURN:
-                            if(cmd_box.in_command){ 
-                                cmdbox_command(&editor, &cmd_box, &fb, &settings);
-                            }else{
-                                save_undo_state(&editor);
-                                strung_insert_char(&editor.text, '\n', editor.cursor.pos_in_text);
-                                editor.cursor.pos_in_text++;
-                                editor.cursor.line++;
-                                editor.cursor.pos_in_line = 0;
-                                editor_recalculate_lines(&editor);
-                            }
-                            break;
-                        case SDLK_TAB:
-                            save_undo_state(&editor);
-                            strung_insert_string(&editor.text, "    ", editor.cursor.pos_in_text);
-                            editor.cursor.pos_in_line += 4;
-                            editor.cursor.pos_in_text += 4;
-                            break;
-                        case SDLK_HOME: 
-                            // Move cursor to the start of the current line
-                            {
-                                editor.cursor.pos_in_text = editor.lines.lines[editor.cursor.line].start;
-                                editor.cursor.pos_in_line = 0;
-                            }
-                            break;
-                        case SDLK_END:
-                            {
-                                editor.cursor.pos_in_text = editor.lines.lines[editor.cursor.line].end;
-                                editor.cursor.pos_in_line = editor.lines.lines[editor.cursor.line].end - editor.lines.lines[editor.cursor.line].start;
-                            }
-                            break;
-                        case SDLK_F2:
-                            read_entire_dir(&fb);
-                            fb.file_browser = true;
-                            strung_reset(&fb.search_buffer);
-                            break;
-                        case SDLK_F3:
-                            cmdbox_reinit(&cmd_box, "Enter Command:", CMD_NONE);
-                            cmd_box.in_command = !cmd_box.in_command;
-                            break;
-                        case SDLK_LEFT:
-                            if (cmd_box.in_command) {
-                                if (cmd_box.cursor > 0) {
-                                    cmd_box.cursor--;
-                                }
-                            } else {
-                                bool shift = (event.key.keysym.mod & KMOD_SHIFT);
-                                bool ctrl = (event.key.keysym.mod & KMOD_CTRL);
-                                if (shift) {
-                                    if (!editor.selection) {
-                                        editor.selection = true;
-                                        editor.selection_start = editor.cursor.pos_in_text;
-                                    }
-                                } else {
-                                    editor.selection_start = 0;
-                                    editor.selection_end = 0;
-                                    editor.selection = false;
-                                }
-                                if (ctrl) {
-                                    // Move left to previous space or newline
-                                    int pos = editor.cursor.pos_in_text;
-                                    if (pos > 0) {
+
+                                    while (pos > 0 && editor.text.data[pos] != ' ' && editor.text.data[pos] != '\n') { // move to previous space or \n
                                         pos--;
-                                        // skip over current spaces or \n
-                                        while (pos > 0 && (editor.text.data[pos] == ' ' || editor.text.data[pos] == '\n')) {
-                                            pos--;
-                                        }
-
-                                        while (pos > 0 && editor.text.data[pos] != ' ' && editor.text.data[pos] != '\n') { // move to previous space or \n
-                                            pos--;
-                                        }
-                                        // If we stopped at a space or \n move after it unless at start
-                                        if (pos > 0) pos++;
-                                        editor.cursor.pos_in_text = pos;
-                                        // Recalculate line and col
-                                        editor_recalc_cursor_pos_and_line(&editor);
-                                       ensure_cursor_visible(&editor);
                                     }
-                                } else {
-                                    // If at start of line, move to end of previous line
-                                    int pos = editor.cursor.pos_in_text;
-                                    if (pos > 0 && editor.cursor.pos_in_line == 0) {
-                                        pos--; // move to previous character (should be '\n')
-                                        int col = 0;
-                                        // Count backwards to previous '\n' or start
-                                        int scan = pos;
-                                        while (scan > 0 && editor.text.data[scan - 1] != '\n') {
-                                            scan--;
-                                            col++;
-                                        }
-                                        editor.cursor.pos_in_text = pos;
-                                        editor.cursor.line--;
-                                        editor.cursor.pos_in_line = col;
-                                    } else if (editor.text.data[editor.cursor.pos_in_text-1] == '\n') {
-                                        editor.cursor.line--;
-                                        editor_recalculate_cursor_pos(&editor);
-                                       ensure_cursor_visible(&editor);
-                                    } else if (editor.cursor.pos_in_text > 0) {
-                                        editor.cursor.pos_in_text--;
-                                        if (editor.cursor.pos_in_line > 0) {
-                                            editor.cursor.pos_in_line--;
-                                        }
-                                       ensure_cursor_visible(&editor);
-                                    }
-                                }
-                                if (shift) {
-                                    editor.selection_end = editor.cursor.pos_in_text;
-                                }
-                            }
-                            break;
-                        case SDLK_RIGHT:
-                            if (cmd_box.in_command) {
-                                if (cmd_box.cursor < cmd_box.command_text.size) {
-                                    cmd_box.cursor++;
-                                }
-                            } else {
-                                bool shift = (event.key.keysym.mod & KMOD_SHIFT);
-                                bool ctrl = (event.key.keysym.mod & KMOD_CTRL);
-                                if (shift) {
-                                    if (!editor.selection) {
-                                        editor.selection = true;
-                                        editor.selection_start = editor.cursor.pos_in_text;
-                                    }
-                                } else {
-                                    editor.selection_start = 0;
-                                    editor.selection_end = 0;
-                                    editor.selection = false;
-                                }
-                                if (ctrl) {
-                                    int pos = editor.cursor.pos_in_text;
-                                    int len = editor.text.size;
-                                    while (pos < len && (editor.text.data[pos] == ' ' || editor.text.data[pos] == '\n')) { // Skip over any current spaces/newline
-                                        pos++;
-                                    }
-
-                                    while (pos < len && editor.text.data[pos] != ' ' && editor.text.data[pos] != '\n') { // Move to next space/newline or end
-                                        pos++;
-                                    }
+                                    // If we stopped at a space or \n move after it unless at start
+                                    if (pos > 0) pos++;
                                     editor.cursor.pos_in_text = pos;
+                                    // Recalculate line and col
                                     editor_recalc_cursor_pos_and_line(&editor);
                                     ensure_cursor_visible(&editor);
-                                } else {
-                                    if (editor.text.data[editor.cursor.pos_in_text] == '\n') {
-                                        editor.cursor.pos_in_line = 0;
-                                        editor.cursor.line++;
-                                        editor.cursor.pos_in_text++;
-                                        ensure_cursor_visible(&editor);
-                                    } else if (editor.cursor.pos_in_text < editor.text.size) {
-                                        editor.cursor.pos_in_text++;
-                                        editor.cursor.pos_in_line++;
-                                        ensure_cursor_visible(&editor);
-                                    }
                                 }
-                                if (shift) {
-                                    editor.selection_end = editor.cursor.pos_in_text;
+                            } else {
+                                // If at start of line, move to end of previous line
+                                int pos = editor.cursor.pos_in_text;
+                                if (pos > 0 && editor.cursor.pos_in_line == 0) {
+                                    pos--; // move to previous character (should be '\n')
+                                    int col = 0;
+                                    // Count backwards to previous '\n' or start
+                                    int scan = pos;
+                                    while (scan > 0 && editor.text.data[scan - 1] != '\n') {
+                                        scan--;
+                                        col++;
+                                    }
+                                    editor.cursor.pos_in_text = pos;
+                                    editor.cursor.line--;
+                                    editor.cursor.pos_in_line = col;
+                                } else if (editor.text.data[editor.cursor.pos_in_text-1] == '\n') {
+                                    editor.cursor.line--;
+                                    editor_recalculate_cursor_pos(&editor);
+                                    ensure_cursor_visible(&editor);
+                                } else if (editor.cursor.pos_in_text > 0) {
+                                    editor.cursor.pos_in_text--;
+                                    if (editor.cursor.pos_in_line > 0) {
+                                        editor.cursor.pos_in_line--;
+                                    }
+                                    ensure_cursor_visible(&editor);
                                 }
                             }
-                            break;
-                        case SDLK_UP:
-                            if (editor.cursor.line > 0) {
-                                bool shift = (event.key.keysym.mod & KMOD_SHIFT);
-                                if (shift) {
-                                    if (!editor.selection) {
-                                        editor.selection = true;
-                                        editor.selection_start = editor.cursor.pos_in_text;
-                                    }
-                                } else {
-                                    editor.selection_start = 0;
-                                    editor.selection_end = 0;
-                                    editor.selection = false;
-                                }
-                                editor.cursor.line--;
-                                editor_recalculate_cursor_pos(&editor);
-                                if (shift) {
-                                    editor.selection_end = editor.cursor.pos_in_text;
-                                }
+                            if (shift) {
+                                editor.selection_end = editor.cursor.pos_in_text;
                             }
-                            ensure_cursor_visible(&editor);
-                            break;
-                        case SDLK_DOWN:
+                        }
 
+                    } else if (key == SDLK_RIGHT) {
+                        if (cmd_box.in_command) {
+                            if (cmd_box.cursor < cmd_box.command_text.size) {
+                                cmd_box.cursor++;
+                            }
+                        } else {
+                            bool shift = (event.key.keysym.mod & KMOD_SHIFT);
+                            bool ctrl = (event.key.keysym.mod & KMOD_CTRL);
+                            if (shift) {
+                                if (!editor.selection) {
+                                    editor.selection = true;
+                                    editor.selection_start = editor.cursor.pos_in_text;
+                                }
+                            } else {
+                                editor.selection_start = 0;
+                                editor.selection_end = 0;
+                                editor.selection = false;
+                            }
+                            if (ctrl) {
+                                int pos = editor.cursor.pos_in_text;
+                                int len = editor.text.size;
+                                while (pos < len && (editor.text.data[pos] == ' ' || editor.text.data[pos] == '\n')) { // Skip over any current spaces/newline
+                                    pos++;
+                                }
+
+                                while (pos < len && editor.text.data[pos] != ' ' && editor.text.data[pos] != '\n') { // Move to next space/newline or end
+                                    pos++;
+                                }
+                                editor.cursor.pos_in_text = pos;
+                                editor_recalc_cursor_pos_and_line(&editor);
+                                ensure_cursor_visible(&editor);
+                            } else {
+                                if (editor.text.data[editor.cursor.pos_in_text] == '\n') {
+                                    editor.cursor.pos_in_line = 0;
+                                    editor.cursor.line++;
+                                    editor.cursor.pos_in_text++;
+                                    ensure_cursor_visible(&editor);
+                                } else if (editor.cursor.pos_in_text < editor.text.size) {
+                                    editor.cursor.pos_in_text++;
+                                    editor.cursor.pos_in_line++;
+                                    ensure_cursor_visible(&editor);
+                                }
+                            }
+                            if (shift) {
+                                editor.selection_end = editor.cursor.pos_in_text;
+                            }
+                        }
+
+                    } else if (key == SDLK_UP) {
+                        if (editor.cursor.line > 0) {
                             bool shift = (event.key.keysym.mod & KMOD_SHIFT);
                             if (shift) {
                                 if (!editor.selection) {
@@ -1708,111 +1700,132 @@ int main(int argc, char *argv[]) {
                                 editor.selection_end = 0;
                                 editor.selection = false;
                             }
-                            editor.cursor.line++;
+                            editor.cursor.line--;
                             editor_recalculate_cursor_pos(&editor);
                             if (shift) {
                                 editor.selection_end = editor.cursor.pos_in_text;
                             }
+                        }
+                        ensure_cursor_visible(&editor);
 
-                            ensure_cursor_visible(&editor);
-                            break;
-                        case SDLK_ESCAPE:
-                            running = 0;
-                            break;
-                        case SDLK_EQUALS:
-                            if(event.key.keysym.mod & KMOD_CTRL){
-                                if(event.key.keysym.mod & KMOD_ALT)editor.scale = 0.3f;
-                                else editor.scale += 0.1;
-                            }
-                            break;
-                        case SDLK_MINUS:
-                            if(event.key.keysym.mod & KMOD_CTRL){  
-                                if(event.key.keysym.mod & KMOD_ALT)editor.scale = 0.3f;
-                                else editor.scale -= 0.1;
-                            }
-                            break;
-                        case SDLK_a:
-                            if(event.key.keysym.mod & KMOD_CTRL){
+                    } else if (key == SDLK_DOWN) {
+
+                        bool shift = (event.key.keysym.mod & KMOD_SHIFT);
+                        if (shift) {
+                            if (!editor.selection) {
                                 editor.selection = true;
-                                editor.selection_start = 0;
-                                editor.selection_end = editor.text.size;
+                                editor.selection_start = editor.cursor.pos_in_text;
                             }
-                        case SDLK_s:
-                            if(event.key.keysym.mod & KMOD_CTRL){
-                                save_file(&editor);
-                            }
-                            break;
-                        case SDLK_o:
-                            if(event.key.keysym.mod & KMOD_CTRL){
-                                cmd_box.in_command = true;
-                                cmdbox_reinit(&cmd_box, "Open File:", CMD_OPENF);
-                                strung_append(&cmd_box.command_text, fb.relative_path.data);
-                                cmd_box.cursor = fb.relative_path.size;
-                            }
-                            break;
-                        case SDLK_x:
-                            save_undo_state(&editor);
-                            if(event.key.keysym.mod & KMOD_CTRL){
-                                if(editor.selection){
-                                    char* selected = strung_substr(&editor.text, editor.selection_start, editor.selection_end - editor.selection_start);
-                                    if(SDL_SetClipboardText(selected) < 0){
-                                        fprintf(stderr, "%s could not be copied to clipboard\n", selected);
-                                    }
-                                    strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
-                                    editor.selection_start = 0;
-                                    editor.selection_end = 0;
-                                    editor.selection = false;
-                                } else {}                            
-                            }
+                        } else {
+                            editor.selection_start = 0;
+                            editor.selection_end = 0;
+                            editor.selection = false;
+                        }
+                        editor.cursor.line++;
+                        editor_recalculate_cursor_pos(&editor);
+                        if (shift) {
+                            editor.selection_end = editor.cursor.pos_in_text;
+                        }
 
-                        case SDLK_c:
-                            if(event.key.keysym.mod & KMOD_CTRL){
-                                if(editor.selection){
-                                    if(editor.selection_end < editor.selection_start){
-                                        SEL_SWAP(editor.selection_start, editor.selection_end)
-                                    }
-                                    char* selected = strung_substr(&editor.text, editor.selection_start, editor.selection_end - editor.selection_start);
-                                    if(SDL_SetClipboardText(selected) < 0){
-                                        fprintf(stderr, "%s could not be copied to clipboard\n", selected);
-                                    }
-                                } else {}
-                            }
-                            break;
-                        case SDLK_v:
-                            save_undo_state(&editor);
-                            if(event.key.keysym.mod & KMOD_CTRL){
-                                char* text = SDL_GetClipboardText();
-                                strung_insert_string(&editor.text, text, editor.cursor.pos_in_text);
-                                editor.cursor.pos_in_line += strlen(text);
-                                editor.cursor.pos_in_text += strlen(text);
-                                SDL_free(text);
+                        ensure_cursor_visible(&editor);
+
+                    } else if (key == SDLK_ESCAPE) {
+                        running = 0;
+
+                    } else if (key == SDLK_EQUALS) {
+                        if(event.key.keysym.mod & KMOD_CTRL){
+                            if(event.key.keysym.mod & KMOD_ALT) editor.scale = 0.3f;
+                            else editor.scale += 0.1;
+                        }
+
+                    } else if (key == SDLK_MINUS) {
+                        if(event.key.keysym.mod & KMOD_CTRL){
+                            if(event.key.keysym.mod & KMOD_ALT) editor.scale = 0.3f;
+                            else editor.scale -= 0.1;
+                        }
+
+                    } else if (key == SDLK_a) {
+                        if(event.key.keysym.mod & KMOD_CTRL){
+                            editor.selection = true;
+                            editor.selection_start = 0;
+                            editor.selection_end = editor.text.size;
+                        }
+
+                    } else if (key == SDLK_s) {
+                        if(event.key.keysym.mod & KMOD_CTRL){
+                            save_file(&editor);
+                        }
+
+                    } else if (keybind_matches(&event, &keybind)) {
+                        cmd_box.in_command = true;
+                        cmdbox_reinit(&cmd_box, "Open File:", CMD_OPENF);
+                        strung_append(&cmd_box.command_text, fb.relative_path.data);
+                        cmd_box.cursor = fb.relative_path.size;
+                    } else if (key == SDLK_x) {
+                        save_undo_state(&editor);
+                        if(event.key.keysym.mod & KMOD_CTRL){
+                            if(editor.selection){
+                                char* selected = strung_substr(&editor.text, editor.selection_start, editor.selection_end - editor.selection_start);
+                                if(SDL_SetClipboardText(selected) < 0){
+                                    fprintf(stderr, "%s could not be copied to clipboard\n", selected);
+                                }
+                                strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
+                                editor.selection_start = 0;
+                                editor.selection_end = 0;
+                                editor.selection = false;
+                            } else {}                            
+                        }
+
+                    } else if (key == SDLK_c) {
+                        if(event.key.keysym.mod & KMOD_CTRL){
+                            if(editor.selection){
+                                if(editor.selection_end < editor.selection_start){
+                                    SEL_SWAP(editor.selection_start, editor.selection_end)
+                                }
+                                char* selected = strung_substr(&editor.text, editor.selection_start, editor.selection_end - editor.selection_start);
+                                if(SDL_SetClipboardText(selected) < 0){
+                                    fprintf(stderr, "%s could not be copied to clipboard\n", selected);
+                                }
+                            } else {}
+                        }
+
+                    } else if (key == SDLK_v) {
+                        save_undo_state(&editor);
+                        if(event.key.keysym.mod & KMOD_CTRL){
+                            char* text = SDL_GetClipboardText();
+                            strung_insert_string(&editor.text, text, editor.cursor.pos_in_text);
+                            editor.cursor.pos_in_line += strlen(text);
+                            editor.cursor.pos_in_text += strlen(text);
+                            SDL_free(text);
+                            editor_recalculate_lines(&editor);
+                        }
+
+                    } else if (key == SDLK_z) {
+                        if(CTRL_HELD){
+                            if(SHIFT_HELD){
+                                redo(&editor);
+                                editor_recalculate_lines(&editor);
+                            }else{
+                                undo(&editor);
                                 editor_recalculate_lines(&editor);
                             }
-                            break;
-                        case SDLK_z:
-                            if(CTRL_HELD){
-                                if(SHIFT_HELD){
-                                    redo(&editor);
-                                    editor_recalculate_lines(&editor);
-                                }else{
-                                    undo(&editor);
-                                    editor_recalculate_lines(&editor);
-                                }
-                            }
-                        case SDLK_PAGEUP:
-                            editor.scroll.y_offset -= 5;
-                            editor.cursor.line -= 5;
-                            clamp_scroll(&editor, &editor.scroll,editor.scale);
-                            break;
-                        case SDLK_PAGEDOWN:
-                            editor.scroll.y_offset += 5;
-                            editor.cursor.line += 5;
-                            clamp_scroll(&editor, &editor.scroll,editor.scale);
-                            break;
-                        default:
-                            break;
+                        }
+
+                    } else if (key == SDLK_PAGEUP) {
+                        editor.scroll.y_offset -= 5;
+                        editor.cursor.line -= 5;
+                        clamp_scroll(&editor, &editor.scroll,editor.scale);
+
+                    } else if (key == SDLK_PAGEDOWN) {
+                        editor.scroll.y_offset += 5;
+                        editor.cursor.line += 5;
+                        clamp_scroll(&editor, &editor.scroll,editor.scale);
+
+                    } else {
+                        // default: nothing
                     }
-            }
+                }
+
             } else if (event.type == SDL_MOUSEWHEEL) {
                 editor.scroll.y_offset -= event.wheel.y * 10;
                 clamp_scroll(&editor, &editor.scroll,editor.scale);
