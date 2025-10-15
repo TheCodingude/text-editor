@@ -230,10 +230,24 @@ void editor_center_cursor(Editor *editor);
 
 #define WHITE vec4f(1.0f, 1.0f, 1.0f, 1.0f)
 TTF_Font *font; // global font for now
+bool editkeys = false;
+
+typedef struct{
+    SDL_KeyCode key;
+    bool ctrl;
+    bool shift;
+    bool alt;
+}Keybind;
+
+typedef struct{
+    Keybind openf;
+}Keybinds;
 
 typedef struct{
     char* path_to_font;
     float editor_scale;
+
+    Keybinds keybinds;
 }Settings;
 
 #include "la.c"
@@ -1088,6 +1102,23 @@ void render_file_browser(Editor *editor, File_Browser *fb) {
 
 }
 
+void render_keybinds(Settings* settings){
+
+    for(int i = 0; i < 1; i++){
+
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        glBegin(GL_LINE_LOOP);
+            glVertex2f(30, 30);
+            glVertex2f(150, 30);
+            glVertex2f(150, 150);
+            glVertex2f(30, 150);
+        glEnd();
+
+
+    }
+
+}
+
 void fb_search(File_Browser *fb){       // VERY basic search
     int search_len = fb->search_buffer.size;
 
@@ -1184,14 +1215,14 @@ int main(int argc, char *argv[]) {
         .scale = DEFAULT_EDITOR_SCALE
     };
 
+
+
     Keybind keybind = {
         .key = SDLK_o, 
-        .ctrl = false, 
-        .shift = false, 
-        .alt = false
+        .ctrl = true, 
+        .shift = true, 
+        .alt = true
     };
-    
-
 
     char buffer[PATH_MAX];
     if(!(realpath(".", buffer))) fprintf(stderr, "Failed, A lot (at opening init directory)\n");
@@ -1201,6 +1232,8 @@ int main(int argc, char *argv[]) {
     Command_Box cmd_box = {.command_text = strung_init("")};
     
     Settings settings = load_settings(&editor, &cmd_box);
+
+    settings.keybinds.openf = keybind;
 
     if(TTF_Init() < 0){
         fprintf(stderr, "Failed to initilize TTF\n");
@@ -1249,7 +1282,6 @@ int main(int argc, char *argv[]) {
     }
 
     SDL_StartTextInput();
-
 
     SDL_EventState(SDL_DROPFILE, SDL_ENABLE); 
     glEnable(GL_BLEND);
@@ -1760,7 +1792,7 @@ int main(int argc, char *argv[]) {
                             save_file(&editor);
                         }
 
-                    } else if (keybind_matches(&event, &keybind)) {
+                    } else if (keybind_matches(&event, &settings.keybinds.openf)) {
                         cmd_box.in_command = true;
                         cmdbox_reinit(&cmd_box, "Open File:", CMD_OPENF);
                         strung_append(&cmd_box.command_text, fb.relative_path.data);
@@ -2006,6 +2038,9 @@ int main(int argc, char *argv[]) {
         if(fb.file_browser){
             render_file_browser(&editor, &fb);
         }
+        else if(editkeys){
+            render_keybinds(&settings);
+        }
         else {
             if(editor.file_path[0] == '\0'){
                 renderText("Please open a file", 50, 20, 0.5f, WHITE);
@@ -2014,13 +2049,12 @@ int main(int argc, char *argv[]) {
             render_scrollbar(&editor,editor.scale);
             render_line_numbers(&editor,editor.scale);
             render_selection(&editor,editor.scale, &editor.scroll);
+            renderCursorScrolled(&editor,editor.scale, &editor.scroll);
         }
         
         if(cmd_box.in_command){
             char buffer[100];
             render_command_box(&editor, &cmd_box);
-        }else{
-            if(!fb.file_browser) renderCursorScrolled(&editor,editor.scale, &editor.scroll);
         }
 
         

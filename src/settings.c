@@ -8,17 +8,7 @@
 #define SETTINGS_COUNT 2
 
 
-typedef struct{
-    SDL_KeyCode key;
-    bool ctrl;
-    bool shift;
-    bool alt;
-}Keybind;
 
-typedef struct{
-    Keybind openf;
-    
-}Keybinds;
 
 
 

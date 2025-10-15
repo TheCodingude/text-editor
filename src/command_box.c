@@ -8,7 +8,8 @@ typedef enum{
     CMD_OPENF, // opening a file
     CMD_PASS_SET, // password protection on the file
     CMD_PASS_ENTER,
-    CMD_FONT_CHANGE // changes font (obviously)
+    CMD_FONT_CHANGE, // changes font (obviously)
+    CMD_KEYBIND 
 }Command_type;
 
 typedef struct{
@@ -109,6 +110,11 @@ void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box, File_Browser *fb
             }
 
 
+        }
+        else if(strcmp(tokens[0]->data, "keybinds") == 0){
+            editkeys = true;
+            cmdbox_reinit(cmd_box, "Enter Command: ", CMD_NONE);
+            cmd_box->in_command = false;
         }
         else{
             // doing nothing cause running a shell command by default seems kinda annoying 
