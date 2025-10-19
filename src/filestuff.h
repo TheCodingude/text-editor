@@ -255,6 +255,7 @@ void open_file(Editor *editor, Command_Box *cmd_box, char* filepath){
 
     editor->cursor.pos_in_text = 0;
     editor->cursor.pos_in_line = 0;
+    editor->cursor.line = 0;
     editor->scroll.x_offset = 0;
     editor->scroll.y_offset = 0;
 
