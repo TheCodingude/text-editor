@@ -232,6 +232,7 @@ void editor_center_cursor(Editor *editor);
 TTF_Font *font; // global font for now
 bool editkeys = false;
 
+// y'know i think i could just do like an array of modifier keys maybe?
 typedef struct{
     SDL_KeyCode key;
     bool ctrl;
@@ -240,7 +241,32 @@ typedef struct{
 }Keybind;
 
 typedef struct{
+    Keybind remove_char;
+    Keybind delete_char;
+    Keybind newline;
+    Keybind indent;
+    Keybind start_of_line;
+    Keybind end_of_line;
+    Keybind toggle_fb;
+    Keybind cmdbox;
+    Keybind cursor_left;
+    Keybind cursor_right;
+    Keybind cursor_up;
+    Keybind cursor_down;
+    Keybind quit_app;
+    Keybind scale_up;
+    Keybind scale_down;
+    Keybind select_all;
+    Keybind savef;
     Keybind openf;
+    
+    Keybind cut;
+    Keybind copy;
+    Keybind paste;
+    Keybind undo;
+    Keybind redo;
+    Keybind scroll_up;
+    Keybind scroll_down;
 }Keybinds;
 
 typedef struct{
@@ -1204,7 +1230,32 @@ bool keybind_matches(const SDL_Event *event, const Keybind *kb)
 }
 
 
-int main(int argc, char *argv[]) {
+int main(void){
+
+    // Editor editor = {
+    //     .cursor = {0}, 
+    //     .file_path = "", 
+    //     .text = strung_init(""),  
+    //     .lines = {0},
+    //     .scale = DEFAULT_EDITOR_SCALE
+    // };
+
+
+    // Command_Box cmd_box = {.command_text = strung_init("")};
+    
+    // Settings settings = load_settings(&editor, &cmd_box);
+
+    Keybind kb = figure_out_keybind("Backspace", "none");
+
+    if(kb.key == SDLK_BACKSPACE) printf("BACKSPACE\n");
+    printf("Ctrl: %i\n", kb.ctrl);
+    printf("Shift: %i\n", kb.shift);
+    printf("Alt: %i\n", kb.alt);
+
+    return 0;
+}
+
+int main2(int argc, char *argv[]) {
     
     
     Editor editor = {
@@ -1593,8 +1644,7 @@ int main(int argc, char *argv[]) {
 
                     } else if (key == SDLK_END) {
                         editor.cursor.pos_in_text = editor.lines.lines[editor.cursor.line].end;
-                        editor.cursor.pos_in_line =
-                            editor.lines.lines[editor.cursor.line].end - editor.lines.lines[editor.cursor.line].start;
+                        editor.cursor.pos_in_line = editor.lines.lines[editor.cursor.line].end - editor.lines.lines[editor.cursor.line].start;
 
                     } else if (key == SDLK_F2) {
                         read_entire_dir(&fb);
@@ -1866,6 +1916,10 @@ int main(int argc, char *argv[]) {
                 editor.scroll.y_offset -= event.wheel.y * 10;
                 clamp_scroll(&editor, &editor.scroll,editor.scale);
             } else if(event.type == SDL_MOUSEBUTTONDOWN){
+
+                if(!fb.file_browser){
+
+                }else{
                 if (event.button.button == SDL_BUTTON_LEFT && !cmd_box.in_command) {
 
                 // Check if mouse is over the scrollbar
@@ -2017,6 +2071,7 @@ int main(int argc, char *argv[]) {
                     last_click_time = now;
                     last_click_x = event.button.x;
                     last_click_y = event.button.y;
+                }
                 }
             }
         }

@@ -6,9 +6,9 @@
 #include <stdio.h>
 #include <ctype.h>
 
-/* ------------------------------------------------------------
-   Strung: simple growable string
-   ------------------------------------------------------------ */
+#define STRUNG_PNTR_CMP(str, cstr) strcmp(str->data, cstr) == 0
+#define STRUNG_CMP(str, cstr) strcmp(str.data, cstr) == 0
+
 
 typedef struct {
     char* data;

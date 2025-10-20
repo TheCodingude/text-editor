@@ -7,8 +7,106 @@
 
 #define SETTINGS_COUNT 2
 
+#define STRING_MATCH(str1, str2) strcmp(str1, str2) == 0
+
+Keybinds default_keys;
+            
+Keybind figure_out_keybind(char* key, char* modifiers){ // 10/10 function name
+
+    Keybind kb = {0};
+
+    if(STRING_MATCH(key, "Backspace")){
+        kb.key = SDLK_BACKSPACE;
+    } else if(STRING_MATCH(key, "Delete")){
+        kb.key = SDLK_DELETE;
+    }
+
+    int num_of_mods = strlen(modifiers);
+    for(int i = 0; i < num_of_mods; i++){
+        if(modifiers[i] == 'c'){
+            kb.ctrl = true;
+        }
+        if(modifiers[i] == 's'){
+            kb.shift = true;
+        }
+        if(modifiers[i] == 'a'){
+            kb.alt = true;
+        }
+    }
+
+    return kb;
+}
 
 
+int load_keybinds(Settings* settings, Strung** lines, int line, int lc){
+
+    for(int i = line; i < lc; i++){
+        if(strcmp(lines[i]->data, "KEYBINDS-END") == 0) return i;
+        
+
+
+        int token_count = 0;
+        Strung** tokens = strung_split_by_delim(lines[i], '|', &token_count);
+
+        if(STRUNG_PNTR_CMP(tokens[0], "remove_char")){
+            settings->keybinds.remove_char = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "delete_char")){
+            settings->keybinds.delete_char = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "newline")){
+            settings->keybinds.newline = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "indent")){
+            settings->keybinds.indent = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "start_of_line")){
+            settings->keybinds.start_of_line = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "end_of_line")){
+            settings->keybinds.end_of_line = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "toggle_fb")){
+            settings->keybinds.toggle_fb = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "cmdbox")){
+            settings->keybinds.cmdbox = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "cursor_left")){
+            settings->keybinds.cursor_left = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "cursor_right")){
+            settings->keybinds.cursor_right = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "cursor_up")){
+            settings->keybinds.cursor_up = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "cursor_down")){
+            settings->keybinds.cursor_down = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "quit_app")){
+            settings->keybinds.quit_app = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "scale_up")){
+            settings->keybinds.scale_up = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "scale_down")){
+            settings->keybinds.scale_down = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "select_all")){
+            settings->keybinds.select_all = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "save_file")){
+            settings->keybinds.savef = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "open_file")){
+            settings->keybinds.openf = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "cut")){
+            settings->keybinds.cut = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "copy")){
+            settings->keybinds.copy = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "paste")){
+            settings->keybinds.paste = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "undo")){
+            settings->keybinds.undo = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "redo")){
+            settings->keybinds.redo = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "scroll_up")){
+            settings->keybinds.scroll_up = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }else if(STRUNG_PNTR_CMP(tokens[0], "scroll_down")){
+            settings->keybinds.scroll_down = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+        }
+
+
+
+    }
+
+    
+
+}
 
 
 
@@ -41,6 +139,8 @@ Settings load_settings(Editor* editor, Command_Box* cmd){
 
 
     Strung** lines = strung_split_by_delim(&fc, '\n', &line_count);
+    Strung keybind_data = strung_init("");
+
 
     for(int i = 0; i < line_count; i++){
         // god i wish switch statements worked for strings 
@@ -51,6 +151,11 @@ Settings load_settings(Editor* editor, Command_Box* cmd){
 
         int token_count = 0;
         Strung** tokens = strung_split_by_delim(lines[i], '|', &token_count);
+        
+        if(strcmp(tokens[0]->data, "KEYBINDS-BEGIN") == 0){
+            i = load_keybinds(&settings, lines, i+1, line_count);
+        }
+        
         
         if(token_count < 2) continue;
 
