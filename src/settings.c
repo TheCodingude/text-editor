@@ -9,17 +9,72 @@
 
 #define STRING_MATCH(str1, str2) strcmp(str1, str2) == 0
 
+#include <SDL2/SDL.h>
+
 Keybinds default_keys;
             
 Keybind figure_out_keybind(char* key, char* modifiers){ // 10/10 function name
 
     Keybind kb = {0};
 
+    /* if i decide to go away with the user being able to just edit the file easily
+    i should switch to just saving the key code or even the scan code 
+
+    Doing it that way would also support every key possible in sdl instead of just what i implement
+    now i wanna do that 
+    */
+
+    // the most readable thing ive ever wrote 100%
     if(STRING_MATCH(key, "Backspace")){
         kb.key = SDLK_BACKSPACE;
-    } else if(STRING_MATCH(key, "Delete")){
+    }else if(STRING_MATCH(key, "Delete")){
         kb.key = SDLK_DELETE;
+    }else if(STRING_MATCH(key, "Escape")){
+        kb.key = SDLK_ESCAPE;
+    }else if(STRING_MATCH(key, "Enter")){
+        kb.key = SDLK_RETURN;
+    }else if(STRING_MATCH(key, "CapsLock")){
+        kb.key = SDLK_CAPSLOCK;
+    }else if(STRING_MATCH(key, "PrintScreen")){
+        kb.key = SDLK_PRINTSCREEN;
+    }else if(STRING_MATCH(key, "ScrollLock")){
+        kb.key = SDLK_SCROLLLOCK;
+    }else if(STRING_MATCH(key, "Pause")){
+        kb.key = SDLK_PAUSE;
+    }else if(STRING_MATCH(key, "Insert")){
+        kb.key = SDLK_INSERT;
+    }else if(STRING_MATCH(key, "Home")){
+        kb.key = SDLK_HOME;
+    }else if(STRING_MATCH(key, "PageUp")){
+        kb.key = SDLK_PAGEUP;
+    }else if(STRING_MATCH(key, "PageDown")){
+        kb.key = SDLK_PAGEDOWN;
+    }else if(STRING_MATCH(key, "End")){
+        kb.key = SDLK_END;
+    }else if(STRING_MATCH(key, "Right")){
+        kb.key = SDLK_RIGHT;
+    }else if(STRING_MATCH(key, "Left")){
+        kb.key = SDLK_LEFT;
+    }else if(STRING_MATCH(key, "Up")){
+        kb.key = SDLK_UP;
+    }else if(STRING_MATCH(key, "Down")){
+        kb.key = SDLK_DOWN;
     }
+
+    // check for functions keys
+    if(key[0] == 'f' || key[0] == 'F'){
+        // i could not figure out how to remove the f to save my life 
+        Strung tmp = strung_init(key);
+        strung_remove_char(&tmp, 0);
+
+        int num = atoi(tmp.data);
+
+        if(num <= 12 && num > 0) kb.key = SDL_SCANCODE_TO_KEYCODE(num + 57);
+        else if(num > 12 && num <= 24) kb.key = SDL_SCANCODE_TO_KEYCODE(num + 91);
+    }
+    
+    // else just make it the character
+    kb.key = key[0] // key[0] just because char and char* are different obviously
 
     int num_of_mods = strlen(modifiers);
     for(int i = 0; i < num_of_mods; i++){

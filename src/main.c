@@ -259,7 +259,6 @@ typedef struct{
     Keybind select_all;
     Keybind savef;
     Keybind openf;
-    
     Keybind cut;
     Keybind copy;
     Keybind paste;
@@ -1245,12 +1244,9 @@ int main(void){
     
     // Settings settings = load_settings(&editor, &cmd_box);
 
-    Keybind kb = figure_out_keybind("Backspace", "none");
-
-    if(kb.key == SDLK_BACKSPACE) printf("BACKSPACE\n");
-    printf("Ctrl: %i\n", kb.ctrl);
-    printf("Shift: %i\n", kb.shift);
-    printf("Alt: %i\n", kb.alt);
+    Keybind kb = figure_out_keybind("F24", "none");
+    // SDLK_0
+    if(kb.key == SDLK_F24) printf("YIPEE\n");
 
     return 0;
 }
