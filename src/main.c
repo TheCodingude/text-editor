@@ -1244,9 +1244,9 @@ int main(void){
     
     // Settings settings = load_settings(&editor, &cmd_box);
 
-    Keybind kb = figure_out_keybind("F24", "none");
+    Keybind kb = figure_out_keybind("f", "none");
     // SDLK_0
-    if(kb.key == SDLK_F24) printf("YIPEE\n");
+    if(kb.key == SDLK_f) printf("YIPEE\n");
 
     return 0;
 }
@@ -1564,7 +1564,7 @@ int main2(int argc, char *argv[]) {
                 } else {
                     SDL_Keycode key = event.key.keysym.sym;
 
-                    if (key == SDLK_BACKSPACE) {
+                    if (keybind_matches(&event, settings.keybinds.remove_char)) {
                         if (cmd_box.in_command){
                             if(cmd_box.cursor > 0){
                                 strung_remove_char(&cmd_box.command_text, cmd_box.cursor - 1);
@@ -1605,7 +1605,7 @@ int main2(int argc, char *argv[]) {
                             }
                         }
 
-                    } else if (key == SDLK_DELETE) {
+                    } else if (keybind_matches(&event, settings.keybinds.delete_char)) {
                         if (cmd_box.in_command) {
                             if (cmd_box.cursor < cmd_box.command_text.size) {
                                 strung_remove_char(&cmd_box.command_text, cmd_box.cursor);
@@ -1616,7 +1616,7 @@ int main2(int argc, char *argv[]) {
                             editor_recalculate_lines(&editor); // Can optimize a bit if i recalculate only when deleting newline
                         }
 
-                    } else if (key == SDLK_RETURN) {
+                    } else if (keybind_matches(&event, settings.keybinds.newline)) {
                         if(cmd_box.in_command){ 
                             cmdbox_command(&editor, &cmd_box, &fb, &settings);
                         } else{
@@ -1628,30 +1628,30 @@ int main2(int argc, char *argv[]) {
                             editor_recalculate_lines(&editor);
                         }
 
-                    } else if (key == SDLK_TAB) {
+                    } else if (keybind_matches(&event, settings.keybinds.indent)) {
                         save_undo_state(&editor);
                         strung_insert_string(&editor.text, "    ", editor.cursor.pos_in_text);
                         editor.cursor.pos_in_line += 4;
                         editor.cursor.pos_in_text += 4;
 
-                    } else if (key == SDLK_HOME) {
+                    } else if (keybind_matches(&event, settings.keybinds.start_of_line)) {
                         editor.cursor.pos_in_text = editor.lines.lines[editor.cursor.line].start;
                         editor.cursor.pos_in_line = 0;
 
-                    } else if (key == SDLK_END) {
+                    } else if (keybind_matches(&event, settings.keybinds.end_of_line)) {
                         editor.cursor.pos_in_text = editor.lines.lines[editor.cursor.line].end;
                         editor.cursor.pos_in_line = editor.lines.lines[editor.cursor.line].end - editor.lines.lines[editor.cursor.line].start;
 
-                    } else if (key == SDLK_F2) {
+                    } else if (keybind_matches(&event, settings.keybinds.toggle_fb)) {
                         read_entire_dir(&fb);
                         fb.file_browser = true;
                         strung_reset(&fb.search_buffer);
 
-                    } else if (key == SDLK_F3) {
+                    } else if (keybind_matches(&event, settings.keybinds.cmdbox)) {
                         cmdbox_reinit(&cmd_box, "Enter Command:", CMD_NONE);
                         cmd_box.in_command = !cmd_box.in_command;
 
-                    } else if (key == SDLK_LEFT) {
+                    } else if (keybind_matches(&event, settings.keybinds.cursor_left)) {
                         if (cmd_box.in_command) {
                             if (cmd_box.cursor > 0) {
                                 cmd_box.cursor--;
@@ -1721,7 +1721,7 @@ int main2(int argc, char *argv[]) {
                             }
                         }
 
-                    } else if (key == SDLK_RIGHT) {
+                    } else if (keybind_matches(&event, settings.keybinds.cursor_right)) {
                         if (cmd_box.in_command) {
                             if (cmd_box.cursor < cmd_box.command_text.size) {
                                 cmd_box.cursor++;
@@ -1769,7 +1769,7 @@ int main2(int argc, char *argv[]) {
                             }
                         }
 
-                    } else if (key == SDLK_UP) {
+                    } else if (keybind_matches(&event, settings.keybinds.cursor_up)) {
                         if (editor.cursor.line > 0) {
                             bool shift = (event.key.keysym.mod & KMOD_SHIFT);
                             if (shift) {
@@ -1790,7 +1790,7 @@ int main2(int argc, char *argv[]) {
                         }
                         ensure_cursor_visible(&editor);
 
-                    } else if (key == SDLK_DOWN) {
+                    } else if (keybind_matches(&event, settings.keybinds.cursor_down)) {
 
                         bool shift = (event.key.keysym.mod & KMOD_SHIFT);
                         if (shift) {
@@ -1811,29 +1811,29 @@ int main2(int argc, char *argv[]) {
 
                         ensure_cursor_visible(&editor);
 
-                    } else if (key == SDLK_ESCAPE) {
+                    } else if (keybind_matches(&event, settings.keybinds.quit_app)) {
                         running = 0;
 
-                    } else if (key == SDLK_EQUALS) {
+                    } else if (keybind_matches(&event, settings.keybinds.scale_up)) {
                         if(event.key.keysym.mod & KMOD_CTRL){
                             if(event.key.keysym.mod & KMOD_ALT) editor.scale = 0.3f;
                             else editor.scale += 0.1;
                         }
 
-                    } else if (key == SDLK_MINUS) {
+                    } else if (keybind_matches(&event, settings.keybinds.scale_down)) {
                         if(event.key.keysym.mod & KMOD_CTRL){
                             if(event.key.keysym.mod & KMOD_ALT) editor.scale = 0.3f;
                             else editor.scale -= 0.1;
                         }
 
-                    } else if (key == SDLK_a) {
+                    } else if (keybind_matches(&event, settings.keybinds.select_all)) {
                         if(event.key.keysym.mod & KMOD_CTRL){
                             editor.selection = true;
                             editor.selection_start = 0;
                             editor.selection_end = editor.text.size;
                         }
 
-                    } else if (key == SDLK_s) {
+                    } else if (keybind_matches(&event, settings.keybinds.savef)) {
                         if(event.key.keysym.mod & KMOD_CTRL){
                             save_file(&editor);
                         }
@@ -1843,7 +1843,7 @@ int main2(int argc, char *argv[]) {
                         cmdbox_reinit(&cmd_box, "Open File:", CMD_OPENF);
                         strung_append(&cmd_box.command_text, fb.relative_path.data);
                         cmd_box.cursor = fb.relative_path.size;
-                    } else if (key == SDLK_x) {
+                    } else if (keybind_matches(&event, settings.keybinds.cut)) {
                         save_undo_state(&editor);
                         if(event.key.keysym.mod & KMOD_CTRL){
                             if(editor.selection){
@@ -1858,7 +1858,7 @@ int main2(int argc, char *argv[]) {
                             } else {}                            
                         }
 
-                    } else if (key == SDLK_c) {
+                    } else if (keybind_matches(&event, settings.keybinds.copy)) {
                         if(event.key.keysym.mod & KMOD_CTRL){
                             if(editor.selection){
                                 if(editor.selection_end < editor.selection_start){
@@ -1871,7 +1871,7 @@ int main2(int argc, char *argv[]) {
                             } else {}
                         }
 
-                    } else if (key == SDLK_v) {
+                    } else if (keybind_matches(&event, settings.keybinds.paste)) {
                         save_undo_state(&editor);
                         if(event.key.keysym.mod & KMOD_CTRL){
                             char* text = SDL_GetClipboardText();
@@ -1882,7 +1882,7 @@ int main2(int argc, char *argv[]) {
                             editor_recalculate_lines(&editor);
                         }
 
-                    } else if (key == SDLK_z) {
+                    } else if (keybind_matches(&event, settings.keybinds.undo)) {
                         if(CTRL_HELD){
                             if(SHIFT_HELD){
                                 redo(&editor);
@@ -1893,12 +1893,12 @@ int main2(int argc, char *argv[]) {
                             }
                         }
 
-                    } else if (key == SDLK_PAGEUP) {
+                    } else if (keybind_matches(&event, settings.keybinds.scroll_up)) {
                         editor.scroll.y_offset -= 5;
                         editor.cursor.line -= 5;
                         clamp_scroll(&editor, &editor.scroll,editor.scale);
 
-                    } else if (key == SDLK_PAGEDOWN) {
+                    } else if (keybind_matches(&event, settings.keybinds.scroll_down)) {
                         editor.scroll.y_offset += 5;
                         editor.cursor.line += 5;
                         clamp_scroll(&editor, &editor.scroll,editor.scale);

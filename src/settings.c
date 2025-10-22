@@ -62,7 +62,9 @@ Keybind figure_out_keybind(char* key, char* modifiers){ // 10/10 function name
     }
 
     // check for functions keys
-    if(key[0] == 'f' || key[0] == 'F'){
+    
+    // i realized that allowing lowercase 'f' would mean the f key wouldnt work
+    if(key[0] == 'F'){
         // i could not figure out how to remove the f to save my life 
         Strung tmp = strung_init(key);
         strung_remove_char(&tmp, 0);
@@ -74,7 +76,7 @@ Keybind figure_out_keybind(char* key, char* modifiers){ // 10/10 function name
     }
     
     // else just make it the character
-    kb.key = key[0] // key[0] just because char and char* are different obviously
+    kb.key = key[0]; // key[0] just because char and char* are different obviously
 
     int num_of_mods = strlen(modifiers);
     for(int i = 0; i < num_of_mods; i++){
