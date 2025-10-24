@@ -249,6 +249,146 @@ Settings load_settings(Editor* editor, Command_Box* cmd){
 
 }
 
+// sacrifices must be made for ease of use
+// i hate this
+
+static void format_key(const Keybind *kb, char *keybuf, size_t kbsz, char *modbuf, size_t msz){
+    if (kb->key == SDLK_BACKSPACE) strncpy(keybuf, "Backspace", kbsz);
+    else if (kb->key == SDLK_DELETE) strncpy(keybuf, "Delete", kbsz);
+    else if (kb->key == SDLK_ESCAPE) strncpy(keybuf, "Escape", kbsz);
+    else if (kb->key == SDLK_RETURN) strncpy(keybuf, "Enter", kbsz);
+    else if (kb->key == SDLK_CAPSLOCK) strncpy(keybuf, "CapsLock", kbsz);
+    else if (kb->key == SDLK_PRINTSCREEN) strncpy(keybuf, "PrintScreen", kbsz);
+    else if (kb->key == SDLK_SCROLLLOCK) strncpy(keybuf, "ScrollLock", kbsz);
+    else if (kb->key == SDLK_PAUSE) strncpy(keybuf, "Pause", kbsz);
+    else if (kb->key == SDLK_INSERT) strncpy(keybuf, "Insert", kbsz);
+    else if (kb->key == SDLK_HOME) strncpy(keybuf, "Home", kbsz);
+    else if (kb->key == SDLK_PAGEUP) strncpy(keybuf, "PageUp", kbsz);
+    else if (kb->key == SDLK_PAGEDOWN) strncpy(keybuf, "PageDown", kbsz);
+    else if (kb->key == SDLK_END) strncpy(keybuf, "End", kbsz);
+    else if (kb->key == SDLK_RIGHT) strncpy(keybuf, "Right", kbsz);
+    else if (kb->key == SDLK_LEFT) strncpy(keybuf, "Left", kbsz);
+    else if (kb->key == SDLK_UP) strncpy(keybuf, "Up", kbsz);
+    else if (kb->key == SDLK_DOWN) strncpy(keybuf, "Down", kbsz);
+    else if (kb->key >= SDLK_F1 && kb->key <= SDLK_F24) {
+        int fnum = kb->key - SDLK_F1 + 1;
+        snprintf(keybuf, kbsz, "F%d", fnum);
+    }
+    else if (kb->key >= 32 && kb->key <= 126) {
+        /* printable ASCII */
+        snprintf(keybuf, kbsz, "%c", (char)kb->key);
+    } else {
+        /* fallback to numeric code */
+        snprintf(keybuf, kbsz, "KEYCODE-%d", kb->key);
+    }
+
+    /* modifiers */
+    size_t idx = 0;
+    if (kb->ctrl && idx + 1 < msz) modbuf[idx++] = 'c';
+    if (kb->shift && idx + 1 < msz) modbuf[idx++] = 's';
+    if (kb->alt && idx + 1 < msz) modbuf[idx++] = 'a';
+    modbuf[idx] = '\0';
+}
+
+
+
+
+void save_keybinds(const Settings settings){
+    // Keybind format: function|key|modifers[CSA]
+
+    FILE* f = fopen("editor_settings", "w");
+    if (!f) {
+        printf("Failed to save keybinds\n");
+        return;
+    }
+
+    char keybuf[32];
+    char modbuf[4];
+
+    fprintf(f, "\n// Keybinds\nKEYBINDS-BEGIN\n");
+
+    format_key(&settings.keybinds.remove_char, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "remove_char|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.delete_char, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "delete_char|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.newline, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "newline|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.indent, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "indent|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.start_of_line, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "start_of_line|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.end_of_line, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "end_of_line|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.toggle_fb, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "toggle_fb|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.cmdbox, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "cmdbox|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.cursor_left, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "cursor_left|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.cursor_right, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "cursor_right|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.cursor_up, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "cursor_up|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.cursor_down, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "cursor_down|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.quit_app, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "quit_app|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.scale_up, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "scale_up|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.scale_down, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "scale_down|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.select_all, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "select_all|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.savef, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "save_file|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.openf, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "open_file|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.cut, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "cut|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.copy, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "copy|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.paste, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "paste|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.undo, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "undo|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.redo, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "redo|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.scroll_up, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "scroll_up|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.scroll_down, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "scroll_down|%s|%s\n", keybuf, modbuf);
+
+    fprintf(f, "KEYBINDS-END\n");
+
+    fclose(f);
+
+}
+
+
 
 void update_and_save_settings(const Settings settings, const Editor editor){
     
@@ -276,7 +416,8 @@ void update_and_save_settings(const Settings settings, const Editor editor){
             editor.scroll.y_offset
             );
 
-
+    fclose(f);
+    save_keybinds(settings);
 
 }
 

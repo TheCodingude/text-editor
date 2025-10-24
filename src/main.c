@@ -256,6 +256,7 @@ typedef struct{
     Keybind quit_app;
     Keybind scale_up;
     Keybind scale_down;
+    Keybind scale_reset;
     Keybind select_all;
     Keybind savef;
     Keybind openf;
@@ -1209,12 +1210,12 @@ void redo(Editor* editor) {
 
 }
 
-bool keybind_matches(const SDL_Event *event, const Keybind *kb)
+bool keybind_matches(const SDL_Event *event, const Keybind kb)
 {
     if (event->type != SDL_KEYDOWN)
         return false;
 
-    if (event->key.keysym.sym != kb->key)
+    if (event->key.keysym.sym != kb.key)
         return false;
 
     SDL_Keymod mods = event->key.keysym.mod;
@@ -1223,13 +1224,13 @@ bool keybind_matches(const SDL_Event *event, const Keybind *kb)
     bool shift_held = mods & KMOD_SHIFT;
     bool alt_held   = mods & KMOD_ALT;
 
-    return (ctrl_held  == kb->ctrl) &&
-           (shift_held == kb->shift) &&
-           (alt_held   == kb->alt);
+    return (ctrl_held  == kb.ctrl) &&
+           (shift_held == kb.shift) &&
+           (alt_held   == kb.alt);
 }
 
 
-int main(void){
+int main2(void){
 
     // Editor editor = {
     //     .cursor = {0}, 
@@ -1251,7 +1252,7 @@ int main(void){
     return 0;
 }
 
-int main2(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
     
     
     Editor editor = {
@@ -1815,85 +1816,59 @@ int main2(int argc, char *argv[]) {
                         running = 0;
 
                     } else if (keybind_matches(&event, settings.keybinds.scale_up)) {
-                        if(event.key.keysym.mod & KMOD_CTRL){
-                            if(event.key.keysym.mod & KMOD_ALT) editor.scale = 0.3f;
-                            else editor.scale += 0.1;
-                        }
-
+                        editor.scale += 0.1;
                     } else if (keybind_matches(&event, settings.keybinds.scale_down)) {
-                        if(event.key.keysym.mod & KMOD_CTRL){
-                            if(event.key.keysym.mod & KMOD_ALT) editor.scale = 0.3f;
-                            else editor.scale -= 0.1;
-                        }
-
+                        editor.scale -= 0.1;
+                    } else if(keybind_matches(&event, settings.keybinds.scale_reset)){
+                        editor.scale = 0.3f;
                     } else if (keybind_matches(&event, settings.keybinds.select_all)) {
-                        if(event.key.keysym.mod & KMOD_CTRL){
-                            editor.selection = true;
-                            editor.selection_start = 0;
-                            editor.selection_end = editor.text.size;
-                        }
-
+                        editor.selection = true;
+                        editor.selection_start = 0;
+                        editor.selection_end = editor.text.size;
                     } else if (keybind_matches(&event, settings.keybinds.savef)) {
-                        if(event.key.keysym.mod & KMOD_CTRL){
                             save_file(&editor);
-                        }
-
-                    } else if (keybind_matches(&event, &settings.keybinds.openf)) {
+                    } else if (keybind_matches(&event, settings.keybinds.openf)) {
                         cmd_box.in_command = true;
                         cmdbox_reinit(&cmd_box, "Open File:", CMD_OPENF);
                         strung_append(&cmd_box.command_text, fb.relative_path.data);
                         cmd_box.cursor = fb.relative_path.size;
                     } else if (keybind_matches(&event, settings.keybinds.cut)) {
                         save_undo_state(&editor);
-                        if(event.key.keysym.mod & KMOD_CTRL){
-                            if(editor.selection){
-                                char* selected = strung_substr(&editor.text, editor.selection_start, editor.selection_end - editor.selection_start);
-                                if(SDL_SetClipboardText(selected) < 0){
-                                    fprintf(stderr, "%s could not be copied to clipboard\n", selected);
-                                }
-                                strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
-                                editor.selection_start = 0;
-                                editor.selection_end = 0;
-                                editor.selection = false;
-                            } else {}                            
-                        }
-
+                        if(editor.selection){
+                            char* selected = strung_substr(&editor.text, editor.selection_start, editor.selection_end - editor.selection_start);
+                            if(SDL_SetClipboardText(selected) < 0){
+                                fprintf(stderr, "%s could not be copied to clipboard\n", selected);
+                            }
+                            strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
+                            editor.selection_start = 0;
+                            editor.selection_end = 0;
+                            editor.selection = false;
+                        } else {}                            
                     } else if (keybind_matches(&event, settings.keybinds.copy)) {
-                        if(event.key.keysym.mod & KMOD_CTRL){
-                            if(editor.selection){
-                                if(editor.selection_end < editor.selection_start){
-                                    SEL_SWAP(editor.selection_start, editor.selection_end)
-                                }
-                                char* selected = strung_substr(&editor.text, editor.selection_start, editor.selection_end - editor.selection_start);
-                                if(SDL_SetClipboardText(selected) < 0){
-                                    fprintf(stderr, "%s could not be copied to clipboard\n", selected);
-                                }
-                            } else {}
-                        }
-
+                        if(editor.selection){
+                            if(editor.selection_end < editor.selection_start){
+                                SEL_SWAP(editor.selection_start, editor.selection_end)
+                            }
+                            char* selected = strung_substr(&editor.text, editor.selection_start, editor.selection_end - editor.selection_start);
+                            if(SDL_SetClipboardText(selected) < 0){
+                                fprintf(stderr, "%s could not be copied to clipboard\n", selected);
+                            }
+                        } else {}
                     } else if (keybind_matches(&event, settings.keybinds.paste)) {
                         save_undo_state(&editor);
-                        if(event.key.keysym.mod & KMOD_CTRL){
-                            char* text = SDL_GetClipboardText();
-                            strung_insert_string(&editor.text, text, editor.cursor.pos_in_text);
-                            editor.cursor.pos_in_line += strlen(text);
-                            editor.cursor.pos_in_text += strlen(text);
-                            SDL_free(text);
-                            editor_recalculate_lines(&editor);
-                        }
-
+                        char* text = SDL_GetClipboardText();
+                        strung_insert_string(&editor.text, text, editor.cursor.pos_in_text);
+                        editor.cursor.pos_in_line += strlen(text);
+                        editor.cursor.pos_in_text += strlen(text);
+                        SDL_free(text);
+                        editor_recalculate_lines(&editor);
                     } else if (keybind_matches(&event, settings.keybinds.undo)) {
-                        if(CTRL_HELD){
-                            if(SHIFT_HELD){
-                                redo(&editor);
-                                editor_recalculate_lines(&editor);
-                            }else{
-                                undo(&editor);
-                                editor_recalculate_lines(&editor);
-                            }
-                        }
-
-                    } else if (keybind_matches(&event, settings.keybinds.scroll_up)) {
+                        undo(&editor);
+                        editor_recalculate_lines(&editor);
+                    }else if(keybind_matches(&event, settings.keybinds.redo)){
+                        editor_recalculate_lines(&editor);
+                        redo(&editor);
+                    }else if (keybind_matches(&event, settings.keybinds.scroll_up)) {
                         editor.scroll.y_offset -= 5;
                         editor.cursor.line -= 5;
                         clamp_scroll(&editor, &editor.scroll,editor.scale);
