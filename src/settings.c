@@ -17,67 +17,8 @@ Keybind figure_out_keybind(char* key, char* modifiers){ // 10/10 function name
 
     Keybind kb = {0};
 
-    /* if i decide to go away with the user being able to just edit the file easily
-    i should switch to just saving the key code or even the scan code 
-
-    Doing it that way would also support every key possible in sdl instead of just what i implement
-    now i wanna do that 
-    */
-
-    // the most readable thing ive ever wrote 100%
-    if(STRING_MATCH(key, "Backspace")){
-        kb.key = SDLK_BACKSPACE;
-    }else if(STRING_MATCH(key, "Delete")){
-        kb.key = SDLK_DELETE;
-    }else if(STRING_MATCH(key, "Escape")){
-        kb.key = SDLK_ESCAPE;
-    }else if(STRING_MATCH(key, "Enter")){
-        kb.key = SDLK_RETURN;
-    }else if(STRING_MATCH(key, "CapsLock")){
-        kb.key = SDLK_CAPSLOCK;
-    }else if(STRING_MATCH(key, "PrintScreen")){
-        kb.key = SDLK_PRINTSCREEN;
-    }else if(STRING_MATCH(key, "ScrollLock")){
-        kb.key = SDLK_SCROLLLOCK;
-    }else if(STRING_MATCH(key, "Pause")){
-        kb.key = SDLK_PAUSE;
-    }else if(STRING_MATCH(key, "Insert")){
-        kb.key = SDLK_INSERT;
-    }else if(STRING_MATCH(key, "Home")){
-        kb.key = SDLK_HOME;
-    }else if(STRING_MATCH(key, "PageUp")){
-        kb.key = SDLK_PAGEUP;
-    }else if(STRING_MATCH(key, "PageDown")){
-        kb.key = SDLK_PAGEDOWN;
-    }else if(STRING_MATCH(key, "End")){
-        kb.key = SDLK_END;
-    }else if(STRING_MATCH(key, "Right")){
-        kb.key = SDLK_RIGHT;
-    }else if(STRING_MATCH(key, "Left")){
-        kb.key = SDLK_LEFT;
-    }else if(STRING_MATCH(key, "Up")){
-        kb.key = SDLK_UP;
-    }else if(STRING_MATCH(key, "Down")){
-        kb.key = SDLK_DOWN;
-    }
-
-    // check for functions keys
+    kb.key = atoi(key);
     
-    // i realized that allowing lowercase 'f' would mean the f key wouldnt work
-    if(key[0] == 'F'){
-        // i could not figure out how to remove the f to save my life 
-        Strung tmp = strung_init(key);
-        strung_remove_char(&tmp, 0);
-
-        int num = atoi(tmp.data);
-
-        if(num <= 12 && num > 0) kb.key = SDL_SCANCODE_TO_KEYCODE(num + 57);
-        else if(num > 12 && num <= 24) kb.key = SDL_SCANCODE_TO_KEYCODE(num + 91);
-    }
-    
-    // else just make it the character
-    kb.key = key[0]; // key[0] just because char and char* are different obviously
-
     int num_of_mods = strlen(modifiers);
     for(int i = 0; i < num_of_mods; i++){
         if(modifiers[i] == 'c'){
@@ -253,56 +194,34 @@ Settings load_settings(Editor* editor, Command_Box* cmd){
 // i hate this
 
 static void format_key(const Keybind *kb, char *keybuf, size_t kbsz, char *modbuf, size_t msz){
-    if (kb->key == SDLK_BACKSPACE) strncpy(keybuf, "Backspace", kbsz);
-    else if (kb->key == SDLK_DELETE) strncpy(keybuf, "Delete", kbsz);
-    else if (kb->key == SDLK_ESCAPE) strncpy(keybuf, "Escape", kbsz);
-    else if (kb->key == SDLK_RETURN) strncpy(keybuf, "Enter", kbsz);
-    else if (kb->key == SDLK_CAPSLOCK) strncpy(keybuf, "CapsLock", kbsz);
-    else if (kb->key == SDLK_PRINTSCREEN) strncpy(keybuf, "PrintScreen", kbsz);
-    else if (kb->key == SDLK_SCROLLLOCK) strncpy(keybuf, "ScrollLock", kbsz);
-    else if (kb->key == SDLK_PAUSE) strncpy(keybuf, "Pause", kbsz);
-    else if (kb->key == SDLK_INSERT) strncpy(keybuf, "Insert", kbsz);
-    else if (kb->key == SDLK_HOME) strncpy(keybuf, "Home", kbsz);
-    else if (kb->key == SDLK_PAGEUP) strncpy(keybuf, "PageUp", kbsz);
-    else if (kb->key == SDLK_PAGEDOWN) strncpy(keybuf, "PageDown", kbsz);
-    else if (kb->key == SDLK_END) strncpy(keybuf, "End", kbsz);
-    else if (kb->key == SDLK_RIGHT) strncpy(keybuf, "Right", kbsz);
-    else if (kb->key == SDLK_LEFT) strncpy(keybuf, "Left", kbsz);
-    else if (kb->key == SDLK_UP) strncpy(keybuf, "Up", kbsz);
-    else if (kb->key == SDLK_DOWN) strncpy(keybuf, "Down", kbsz);
-    else if (kb->key >= SDLK_F1 && kb->key <= SDLK_F24) {
-        int fnum = kb->key - SDLK_F1 + 1;
-        snprintf(keybuf, kbsz, "F%d", fnum);
-    }
-    else if (kb->key >= 32 && kb->key <= 126) {
-        /* printable ASCII */
-        snprintf(keybuf, kbsz, "%c", (char)kb->key);
-    } else {
-        /* fallback to numeric code */
-        snprintf(keybuf, kbsz, "KEYCODE-%d", kb->key);
-    }
+    /* Save the raw keycode number instead of a human readable name */
+    snprintf(keybuf, kbsz, "%d", (int)kb->key);
 
     /* modifiers */
     size_t idx = 0;
     if (kb->ctrl && idx + 1 < msz) modbuf[idx++] = 'c';
     if (kb->shift && idx + 1 < msz) modbuf[idx++] = 's';
     if (kb->alt && idx + 1 < msz) modbuf[idx++] = 'a';
-    modbuf[idx] = '\0';
+
+    if (idx == 0) {
+        /* write "none" when there are no modifiers; snprintf will safely truncate if msz is small */
+        snprintf(modbuf, msz, "none");
+    } else {
+        modbuf[idx] = '\0';
+    }
 }
 
 
-
-
 void save_keybinds(const Settings settings){
-    // Keybind format: function|key|modifers[CSA]
-
-    FILE* f = fopen("editor_settings", "w");
+    // Keybind format: function|keycode|modifers[CSA]
+    // Append so previously written general settings are preserved.
+    FILE* f = fopen("editor_settings", "a");
     if (!f) {
         printf("Failed to save keybinds\n");
         return;
     }
 
-    char keybuf[32];
+    char keybuf[32]; 
     char modbuf[4];
 
     fprintf(f, "\n// Keybinds\nKEYBINDS-BEGIN\n");
@@ -385,7 +304,6 @@ void save_keybinds(const Settings settings){
     fprintf(f, "KEYBINDS-END\n");
 
     fclose(f);
-
 }
 
 

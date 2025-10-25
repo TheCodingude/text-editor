@@ -1,0 +1,40 @@
+// General Settings
+font|fonts/MapleMono-Regular.ttf
+ed-scale|0.300000
+
+// Previous State
+last_opened_file|/home/business/text-editor/src/main.c
+cur_pos_in_text|1266
+cur_pos_in_line|0
+cur_line|64
+scroll_x|0
+scroll_y|47
+
+// Keybinds
+KEYBINDS-BEGIN
+remove_char|8|non
+delete_char|127|non
+newline|13|non
+indent|9|non
+start_of_line|1073741898|non
+end_of_line|1073741901|non
+toggle_fb|1073741883|non
+cmdbox|1073741884|non
+cursor_left|1073741904|non
+cursor_right|1073741903|non
+cursor_up|1073741906|non
+cursor_down|1073741905|non
+quit_app|27|non
+scale_up|1073741927|c
+scale_down|45|c
+select_all|97|c
+save_file|115|c
+open_file|111|c
+cut|120|c
+copy|99|c
+paste|118|c
+undo|122|c
+redo|122|cs
+scroll_up|1073741899|non
+scroll_down|1073741902|non
+KEYBINDS-END

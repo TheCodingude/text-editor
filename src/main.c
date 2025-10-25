@@ -1263,15 +1263,6 @@ int main(int argc, char *argv[]) {
         .scale = DEFAULT_EDITOR_SCALE
     };
 
-
-
-    Keybind keybind = {
-        .key = SDLK_o, 
-        .ctrl = true, 
-        .shift = true, 
-        .alt = true
-    };
-
     char buffer[PATH_MAX];
     if(!(realpath(".", buffer))) fprintf(stderr, "Failed, A lot (at opening init directory)\n");
     File_Browser fb = {.relative_path = strung_init(buffer), .scale = 0.5f, .new_file_path = strung_init(""), .copied_file_contents = strung_init_custom("", 1024)};
@@ -1280,8 +1271,9 @@ int main(int argc, char *argv[]) {
     Command_Box cmd_box = {.command_text = strung_init("")};
     
     Settings settings = load_settings(&editor, &cmd_box);
-
-    settings.keybinds.openf = keybind;
+    // Settings settings = {0};
+    // settings.path_to_font = "fonts/MapleMono-Regular.ttf";
+    // settings.editor_scale = 0.3f;
 
     if(TTF_Init() < 0){
         fprintf(stderr, "Failed to initilize TTF\n");
