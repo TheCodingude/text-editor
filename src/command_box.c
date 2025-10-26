@@ -9,7 +9,7 @@ typedef enum{
     CMD_PASS_SET, // password protection on the file
     CMD_PASS_ENTER,
     CMD_FONT_CHANGE, // changes font (obviously)
-    CMD_KEYBIND 
+    CMD_KEYBINDS, // Shows keybind editing screen
 }Command_type;
 
 typedef struct{

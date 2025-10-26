@@ -238,6 +238,8 @@ typedef struct{
     bool ctrl;
     bool shift;
     bool alt;
+
+    char* description; // for the keybinds screen thing
 }Keybind;
 
 typedef struct{
@@ -1818,7 +1820,7 @@ int main(int argc, char *argv[]) {
                         editor.selection_start = 0;
                         editor.selection_end = editor.text.size;
                     } else if (keybind_matches(&event, settings.keybinds.savef)) {
-                            save_file(&editor);
+                        save_file(&editor);
                     } else if (keybind_matches(&event, settings.keybinds.openf)) {
                         cmd_box.in_command = true;
                         cmdbox_reinit(&cmd_box, "Open File:", CMD_OPENF);
@@ -1880,7 +1882,7 @@ int main(int argc, char *argv[]) {
                 clamp_scroll(&editor, &editor.scroll,editor.scale);
             } else if(event.type == SDL_MOUSEBUTTONDOWN){
 
-                if(!fb.file_browser){
+                if(fb.file_browser){
 
                 }else{
                 if (event.button.button == SDL_BUTTON_LEFT && !cmd_box.in_command) {

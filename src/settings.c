@@ -48,54 +48,79 @@ int load_keybinds(Settings* settings, Strung** lines, int line, int lc){
 
         if(STRUNG_PNTR_CMP(tokens[0], "remove_char")){
             settings->keybinds.remove_char = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.remove_char.description = "Delete Character Before Cursor"
         }else if(STRUNG_PNTR_CMP(tokens[0], "delete_char")){
             settings->keybinds.delete_char = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.delete_char.description = "Deletes Character After Cursor"
         }else if(STRUNG_PNTR_CMP(tokens[0], "newline")){
             settings->keybinds.newline = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.newline.description = "Inserts a newline";
         }else if(STRUNG_PNTR_CMP(tokens[0], "indent")){
             settings->keybinds.indent = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.indent.description = "Indents the line";
         }else if(STRUNG_PNTR_CMP(tokens[0], "start_of_line")){
             settings->keybinds.start_of_line = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.start_of_line.description = "Moves the cursor to the start of the line";
         }else if(STRUNG_PNTR_CMP(tokens[0], "end_of_line")){
             settings->keybinds.end_of_line = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.end_of_line.description = "Moves the cursor to the end of the line";
         }else if(STRUNG_PNTR_CMP(tokens[0], "toggle_fb")){
             settings->keybinds.toggle_fb = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.toggle_fb.description = "Show the file browser";
         }else if(STRUNG_PNTR_CMP(tokens[0], "cmdbox")){
             settings->keybinds.cmdbox = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.cmdbox.description = "Toggles the command box";
         }else if(STRUNG_PNTR_CMP(tokens[0], "cursor_left")){
             settings->keybinds.cursor_left = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.cursor_left.description = "Move cursor left";
         }else if(STRUNG_PNTR_CMP(tokens[0], "cursor_right")){
             settings->keybinds.cursor_right = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.cursor_right.description = "Move cursor right";
         }else if(STRUNG_PNTR_CMP(tokens[0], "cursor_up")){
             settings->keybinds.cursor_up = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.cursor_up.description = "Move cursor up";
         }else if(STRUNG_PNTR_CMP(tokens[0], "cursor_down")){
             settings->keybinds.cursor_down = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.cursor_down.description = "Move cursor down";
         }else if(STRUNG_PNTR_CMP(tokens[0], "quit_app")){
             settings->keybinds.quit_app = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.quit_app.description = "Close editor";
         }else if(STRUNG_PNTR_CMP(tokens[0], "scale_up")){
             settings->keybinds.scale_up = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.scale_up.description = "Zoom out";
         }else if(STRUNG_PNTR_CMP(tokens[0], "scale_down")){
             settings->keybinds.scale_down = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.scale_down.description = "Zoom in";
         }else if(STRUNG_PNTR_CMP(tokens[0], "select_all")){
             settings->keybinds.select_all = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.select_all.description = "Selects all the text";
         }else if(STRUNG_PNTR_CMP(tokens[0], "save_file")){
             settings->keybinds.savef = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.savef.description = "Saves current file";
         }else if(STRUNG_PNTR_CMP(tokens[0], "open_file")){
             settings->keybinds.openf = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.openf.description = "Opens a file";
         }else if(STRUNG_PNTR_CMP(tokens[0], "cut")){
             settings->keybinds.cut = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.cut.description = "Cuts highlighted text to clipboard";
         }else if(STRUNG_PNTR_CMP(tokens[0], "copy")){
             settings->keybinds.copy = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.copy.description = "Copies highlighted text to clipboard";
         }else if(STRUNG_PNTR_CMP(tokens[0], "paste")){
             settings->keybinds.paste = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.paste.description = "Paste from clipboard";
         }else if(STRUNG_PNTR_CMP(tokens[0], "undo")){
             settings->keybinds.undo = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.undo.description = "Undos previous changes";
         }else if(STRUNG_PNTR_CMP(tokens[0], "redo")){
             settings->keybinds.redo = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.redo.description = "Undos the previous undos";
         }else if(STRUNG_PNTR_CMP(tokens[0], "scroll_up")){
             settings->keybinds.scroll_up = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.scroll_up.description = "Scrolls up x amount of lines";
         }else if(STRUNG_PNTR_CMP(tokens[0], "scroll_down")){
             settings->keybinds.scroll_down = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.scroll_down.description = "Scrolls down x amount of lines";
         }
 
 
@@ -213,8 +238,8 @@ static void format_key(const Keybind *kb, char *keybuf, size_t kbsz, char *modbu
 
 
 void save_keybinds(const Settings settings){
-    // Keybind format: function|keycode|modifers[CSA]
-    // Append so previously written general settings are preserved.
+    // Keybind format: function|keycode|modifers[CSA]   C - ctrl, S - shift, A - alt 
+    
     FILE* f = fopen("editor_settings", "a");
     if (!f) {
         printf("Failed to save keybinds\n");
