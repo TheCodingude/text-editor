@@ -26,7 +26,7 @@ void organize_directory(File_Browser *fb){
 
 void read_entire_dir(File_Browser *fb) {
     if (fb->relative_path.size == 0) {
-        fprintf(stderr, "UNREACHABLE: read_entire_dir\n");
+        fprintf(stderr, "UNREACHABLE: read_entire_dir\n"); // btw this is no longer unreachable i think
         return;
     }
 

@@ -1378,7 +1378,23 @@ int main(int argc, char *argv[]) {
                     }
                 }
             } else if (event.type == SDL_KEYDOWN) {
-                if (fb.file_browser) {
+                if(cmd_box.in_command){
+                    SDL_Keycode key = event.key.keysym.sym;
+
+                    if(key == SDLK_RETURN){
+                        cmdbox_command(&editor, &cmd_box, &fb, &settings);
+                    }else if (key == SDLK_BACKSPACE){
+                        if(cmd_box.cursor > 0){
+                            strung_remove_char(&cmd_box.command_text, cmd_box.cursor - 1);
+                            cmd_box.cursor--;
+                        }
+                    }else if (key == SDLK_F3){
+                        cmd_box.in_command = !cmd_box.in_command;
+                    }else if (key == SDLK_TAB){
+                        cmdbox_autocomplete(&cmd_box);
+                    }
+                }
+                else if (fb.file_browser) {
                     SDL_Keycode key = event.key.keysym.sym;
 
                     if (key == SDLK_F2) {
@@ -1400,9 +1416,7 @@ int main(int argc, char *argv[]) {
                             strung_remove_char(&fb.search_buffer, fb.search_buffer.size - 1);
 
                     } else if (key == SDLK_RETURN) {
-                        if (cmd_box.in_command){ // idk the order i should focus these
-                            cmdbox_command(&editor, &cmd_box, &fb, &settings);
-                        } else if (fb.new_file){
+                        if (fb.new_file){
                             if (fb.new_file_path.size > 0){
                                 Strung final = strung_init("");
                                 strung_append(&final, fb.relative_path.data);
@@ -1560,12 +1574,7 @@ int main(int argc, char *argv[]) {
                     SDL_Keycode key = event.key.keysym.sym;
 
                     if (keybind_matches(&event, settings.keybinds.remove_char)) {
-                        if (cmd_box.in_command){
-                            if(cmd_box.cursor > 0){
-                                strung_remove_char(&cmd_box.command_text, cmd_box.cursor - 1);
-                                cmd_box.cursor--;
-                            }
-                        } else if(editor.selection){
+                        if(editor.selection){
                             if (editor.selection_end < editor.selection_start) {
                                 int temp = editor.selection_end;
                                 editor.selection_end = editor.selection_start;

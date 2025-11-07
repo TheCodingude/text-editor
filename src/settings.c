@@ -48,10 +48,10 @@ int load_keybinds(Settings* settings, Strung** lines, int line, int lc){
 
         if(STRUNG_PNTR_CMP(tokens[0], "remove_char")){
             settings->keybinds.remove_char = figure_out_keybind(tokens[1]->data, tokens[2]->data);
-            settings->keybinds.remove_char.description = "Delete Character Before Cursor"
+            settings->keybinds.remove_char.description = "Delete Character Before Cursor";
         }else if(STRUNG_PNTR_CMP(tokens[0], "delete_char")){
             settings->keybinds.delete_char = figure_out_keybind(tokens[1]->data, tokens[2]->data);
-            settings->keybinds.delete_char.description = "Deletes Character After Cursor"
+            settings->keybinds.delete_char.description = "Deletes Character After Cursor";
         }else if(STRUNG_PNTR_CMP(tokens[0], "newline")){
             settings->keybinds.newline = figure_out_keybind(tokens[1]->data, tokens[2]->data);
             settings->keybinds.newline.description = "Inserts a newline";

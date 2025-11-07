@@ -13,13 +13,15 @@ typedef enum{
 }Command_type;
 
 typedef struct{
-    size_t cursor; // i really don't think this needs a full cursor right? just an index in the text should suffice 
+    size_t cursor; 
     bool in_command;
     char* prompt; 
     Strung command_text;
     Command_type type;
 }Command_Box;
 
+int fonts_count = 0;
+Strung** list_of_fonts;
 
 void cmdbox_reinit(Command_Box *cmd_box, char* new_prompt, Command_type type){
     strung_reset(&cmd_box->command_text);
@@ -29,6 +31,77 @@ void cmdbox_reinit(Command_Box *cmd_box, char* new_prompt, Command_type type){
 }
 
 #include "filestuff.h"
+// #include "strung.h" // here because vs code highlighting and autocomplete doo doo
+
+void cmdbox_autocomplete(Command_Box* cmd_box){
+
+    if(cmd_box->command_text.size < 1){
+        return;
+    }
+
+    Strung command = strung_copy(&cmd_box->command_text);
+    strung_trim(&command); // idk why i trim and split by space im pretty sure splitting gets rid of all of them anyway but if it works dont touch it
+    int token_count; 
+    Strung** tokens = strung_split_by_space(&command, &token_count);
+
+    
+    if(STRUNG_PNTR_CMP(tokens[0], "font")){
+
+        if(fonts_count < 1){  // open the fonts only on first call, i highly doubt you would change font multiple times in one instance but whatever
+            DIR *dir = opendir("fonts");
+            if (!dir) {
+                fprintf(stderr, "Cannot open fonts directory");
+                return;
+            }
+            Strung tmp = strung_init("");
+            struct dirent *ent;
+            while ((ent = readdir(dir)) != NULL) {
+    
+                if(ent->d_name[0] == '.') continue;
+
+                Strung fname = strung_init(ent->d_name);
+                
+                int idx = strung_search_left(&fname, '.');
+                strung_delete_range(&fname, idx, fname.size);
+
+                
+                
+
+                strung_append(&tmp, fname.data);
+                strung_append_char(&tmp, ' ');
+    
+     
+            }
+            
+            list_of_fonts = strung_split_by_space(&tmp, &fonts_count);
+            strung_free(&tmp);
+            closedir(dir);
+        }
+
+        if(token_count < 2){
+            return;
+        }
+
+
+        for(int i = 0; i < fonts_count; i++){
+            if(strung_starts_with(list_of_fonts[i], tokens[1]->data)){
+                strung_delete_range(&cmd_box->command_text, 5, cmd_box->command_text.size);
+                strung_append(&cmd_box->command_text, list_of_fonts[i]->data);
+                cmd_box->cursor = cmd_box->command_text.size;
+
+            }
+        }
+        
+
+        
+        
+
+    }
+    
+}
+
+
+
 
 void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box, File_Browser *fb, Settings* settings){
 
