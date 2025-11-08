@@ -1,0 +1,7 @@
+this is a file so i remember to fix stuff at some point. 
+I would rather implement cool features but if i wanna use this editor at some point then i need to fix these bugs
+
+
+
+- Loading the relative path on startup causes weird behavior in the File Browser 
+
