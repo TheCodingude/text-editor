@@ -1,3 +1,3 @@
 name idea - CodEdit (CODe EDITor)
 
-if you have thoughts or other name suggetions create a pull request editing this file
+if you have thoughts or other name suggetions create a pull request editing this file, or just like put it in the issues or something
