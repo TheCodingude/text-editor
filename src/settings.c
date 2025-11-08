@@ -133,7 +133,7 @@ int load_keybinds(Settings* settings, Strung** lines, int line, int lc){
 
 
 
-Settings load_settings(Editor* editor, Command_Box* cmd, File_Browser* fb){
+Settings load_settings(Editor* editor, Info_box* info,Command_Box* cmd, File_Browser* fb){
 
     // put all setting defaults in and just change them as needed 
     // this might be a good approach or maybe not i have no idea 
@@ -190,7 +190,7 @@ Settings load_settings(Editor* editor, Command_Box* cmd, File_Browser* fb){
             settings.editor_scale = atof(tokens[1]->data);
         }
         else if(strcmp(tokens[0]->data, "last_opened_file") == 0){
-            open_file(editor, cmd, tokens[1]->data);
+            open_file(editor, info, cmd, tokens[1]->data);
             Strung tmp = strung_init(tokens[1]->data);
             int loc = strung_search_right(&tmp, '/');
             strung_delete_range(&tmp, loc, tmp.size);

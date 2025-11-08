@@ -199,7 +199,7 @@ void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box, File_Browser *fb
 
 }
 
-void cmdbox_command(Editor* editor, Command_Box *cmd_box, File_Browser *fb, Settings* settings){ // editor is passed so we can manipulate it 
+void cmdbox_command(Editor* editor, Info_box* info, Command_Box *cmd_box, File_Browser *fb, Settings* settings){ // editor is passed so we can manipulate it 
 
     switch(cmd_box->type){
         case CMD_NONE:
@@ -219,7 +219,7 @@ void cmdbox_command(Editor* editor, Command_Box *cmd_box, File_Browser *fb, Sett
             break;
         case CMD_OPENF:
             char buffer[PATH_MAX];
-            open_file(editor, cmd_box, cmd_box->command_text.data);
+            open_file(editor, info ,cmd_box, cmd_box->command_text.data);
             if(realpath(cmd_box->command_text.data, buffer)){
                 strung_reset(&fb->relative_path);
                 strung_append(&fb->relative_path, buffer);

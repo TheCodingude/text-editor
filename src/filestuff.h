@@ -221,8 +221,9 @@ void open_file_into_strung(Strung *buff, char* file_path){
 }
 
 
-void open_file(Editor *editor, Command_Box *cmd_box, char* filepath){
+void open_file(Editor *editor, Info_box* info ,Command_Box *cmd_box, char* filepath){
     editor->file_path = filepath;
+    info->file_path = filepath;
 
     FILE *f = fopen(filepath, "r");
     if(f == NULL){

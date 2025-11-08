@@ -88,7 +88,11 @@ void cache_glyph(char c, TTF_Font* font) {
     SDL_FreeSurface(surface);
 }
 
+typedef struct{
+    char* file_path;
 
+    bool error;
+}Info_box;
 
 typedef struct{
     char* name;
@@ -1231,6 +1235,40 @@ bool keybind_matches(const SDL_Event *event, const Keybind kb)
            (alt_held   == kb.alt);
 }
 
+void render_info_box(Info_box info, SDL_Window* window){
+    int w, h;
+    SDL_GetWindowSize(window, &w, &h);
+
+    float scale_prompt = 0.37f;
+    float box_padding = 10.0f;
+
+    float x = 0;
+    float y = h;
+    float x1 = x + w;
+    float y1 = (95 * h) / 100;
+
+    // Background box
+
+    if(info.error) glColor4f(0.5, 0.0, 0.0, 1.0f);
+    else glColor4f(0.0, 0.0, 0.0, 1.0f);
+
+    glBegin(GL_QUADS);
+        glVertex2f(x, y1);
+        glVertex2f(x1, y1);
+        glVertex2f(x1, y);
+        glVertex2f(x, y);
+    glEnd();
+
+
+    float prompt_x = x + box_padding;
+    float prompt_y = y - 25;
+
+    if (info.file_path[0] == '\0') renderText("No file opened", prompt_x, prompt_y, scale_prompt, WHITE);
+    else renderText(info.file_path, prompt_x, prompt_y, scale_prompt, WHITE);
+
+}
+
+
 
 int main(int argc, char *argv[]) {
     
@@ -1249,8 +1287,10 @@ int main(int argc, char *argv[]) {
     strung_append_char(&fb.relative_path, '/');
 
     Command_Box cmd_box = {.command_text = strung_init("")};
+
+    Info_box info = {.file_path = "\0", .error = true};
     
-    Settings settings = load_settings(&editor, &cmd_box, &fb);
+    Settings settings = load_settings(&editor, &info ,&cmd_box, &fb);
     // Settings settings = {0};
     // settings.path_to_font = "fonts/MapleMono-Regular.ttf";
     // settings.editor_scale = 0.3f;
@@ -1273,7 +1313,7 @@ int main(int argc, char *argv[]) {
     bool line_switch = false;
 
     if (argc > 1){
-        open_file(&editor, &cmd_box, argv[1]);
+        open_file(&editor, &info, &cmd_box, argv[1]);
         editor_recalculate_lines(&editor);
     }
 
@@ -1318,7 +1358,7 @@ int main(int argc, char *argv[]) {
                 if(fb.file_browser){
                     move_file_to_fb(&fb, event.drop.file); // make this work with folders
                 }else{
-                    open_file(&editor, &cmd_box,event.drop.file); 
+                    open_file(&editor, &info, &cmd_box,event.drop.file); 
                 }
                 SDL_free(event.drop.file);                                                               
             }
@@ -1360,7 +1400,7 @@ int main(int argc, char *argv[]) {
                     SDL_Keycode key = event.key.keysym.sym;
 
                     if(key == SDLK_RETURN){
-                        cmdbox_command(&editor, &cmd_box, &fb, &settings);
+                        cmdbox_command(&editor, &info, &cmd_box, &fb, &settings);
                     }else if (key == SDLK_BACKSPACE){
                         if(cmd_box.cursor > 0){
                             strung_remove_char(&cmd_box.command_text, cmd_box.cursor - 1);
@@ -1432,7 +1472,7 @@ int main(int argc, char *argv[]) {
                                 if (!realpath(full_path, resolved)) {
                                     fprintf(stderr, "Failed to get full file path of %s\n", selected);
                                 } else {
-                                    open_file(&editor, &cmd_box, resolved);
+                                    open_file(&editor, &info ,&cmd_box, resolved);
                                     ensure_cursor_visible(&editor);
                                     fb.file_browser = false;
                                 }
@@ -1600,7 +1640,7 @@ int main(int argc, char *argv[]) {
 
                     } else if (keybind_matches(&event, settings.keybinds.newline)) {
                         if(cmd_box.in_command){ 
-                            cmdbox_command(&editor, &cmd_box, &fb, &settings);
+                            cmdbox_command(&editor, &info, &cmd_box, &fb, &settings);
                         } else{
                             save_undo_state(&editor);
                             strung_insert_char(&editor.text, '\n', editor.cursor.pos_in_text);
@@ -2051,12 +2091,14 @@ int main(int argc, char *argv[]) {
         else {
             if(editor.file_path[0] == '\0'){
                 renderText("Please open a file", 50, 20, 0.5f, WHITE);
+            }else{
+                renderTextScrolled(&editor, LINE_NUMS_OFFSET, 10.0f,editor.scale, WHITE);
+                render_scrollbar(&editor,editor.scale);
+                render_line_numbers(&editor,editor.scale);
+                render_selection(&editor,editor.scale, &editor.scroll);
+                renderCursorScrolled(&editor,editor.scale, &editor.scroll);
             }
-            renderTextScrolled(&editor, LINE_NUMS_OFFSET, 10.0f,editor.scale, WHITE);
-            render_scrollbar(&editor,editor.scale);
-            render_line_numbers(&editor,editor.scale);
-            render_selection(&editor,editor.scale, &editor.scroll);
-            renderCursorScrolled(&editor,editor.scale, &editor.scroll);
+            render_info_box(info, editor.window);
         }
         
         if(cmd_box.in_command){
