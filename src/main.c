@@ -1025,7 +1025,7 @@ void render_file_browser(Editor *editor, File_Browser *fb) {
     char name_buf[PATH_MAX];
     char info_buf[128];
 
-    renderText(fb->relative_path.data, 10, 10, fb->scale, WHITE); // this is one place where a freetype font would 100% look better
+    renderText(fb->relative_path.data, 10, 10, fb->scale, WHITE); 
 
     // Calculate max width for size column
     int max_size_width = 0;
@@ -1232,28 +1232,6 @@ bool keybind_matches(const SDL_Event *event, const Keybind kb)
 }
 
 
-int main2(void){
-
-    // Editor editor = {
-    //     .cursor = {0}, 
-    //     .file_path = "", 
-    //     .text = strung_init(""),  
-    //     .lines = {0},
-    //     .scale = DEFAULT_EDITOR_SCALE
-    // };
-
-
-    // Command_Box cmd_box = {.command_text = strung_init("")};
-    
-    // Settings settings = load_settings(&editor, &cmd_box);
-
-    Keybind kb = figure_out_keybind("f", "none");
-    // SDLK_0
-    if(kb.key == SDLK_f) printf("YIPEE\n");
-
-    return 0;
-}
-
 int main(int argc, char *argv[]) {
     
     
@@ -1272,7 +1250,7 @@ int main(int argc, char *argv[]) {
 
     Command_Box cmd_box = {.command_text = strung_init("")};
     
-    Settings settings = load_settings(&editor, &cmd_box);
+    Settings settings = load_settings(&editor, &cmd_box, &fb);
     // Settings settings = {0};
     // settings.path_to_font = "fonts/MapleMono-Regular.ttf";
     // settings.editor_scale = 0.3f;

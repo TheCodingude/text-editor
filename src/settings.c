@@ -133,7 +133,7 @@ int load_keybinds(Settings* settings, Strung** lines, int line, int lc){
 
 
 
-Settings load_settings(Editor* editor, Command_Box* cmd){
+Settings load_settings(Editor* editor, Command_Box* cmd, File_Browser* fb){
 
     // put all setting defaults in and just change them as needed 
     // this might be a good approach or maybe not i have no idea 
@@ -191,6 +191,10 @@ Settings load_settings(Editor* editor, Command_Box* cmd){
         }
         else if(strcmp(tokens[0]->data, "last_opened_file") == 0){
             open_file(editor, cmd, tokens[1]->data);
+            Strung tmp = strung_init(tokens[1]->data);
+            int loc = strung_search_right(&tmp, '/');
+            strung_delete_range(&tmp, loc, tmp.size);
+            fb->relative_path = tmp;
         }
         else if(strcmp(tokens[0]->data, "cur_pos_in_text") == 0){
             editor->cursor.pos_in_text = atoi(tokens[1]->data);
