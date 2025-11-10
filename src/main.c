@@ -90,6 +90,7 @@ void cache_glyph(char c, TTF_Font* font) {
 
 typedef struct{
     char* file_path;
+    bool unsaved_changes;
 
     bool error;
 }Info_box;
@@ -1266,6 +1267,8 @@ void render_info_box(Info_box info, SDL_Window* window){
     if (info.file_path[0] == '\0') renderText("No file opened", prompt_x, prompt_y, scale_prompt, WHITE);
     else renderText(info.file_path, prompt_x, prompt_y, scale_prompt, WHITE);
 
+    if(info.unsaved_changes) renderText("(unsaved changes)", prompt_x + 200, prompt_y, scale_prompt, WHITE);
+
 }
 
 
@@ -1288,7 +1291,7 @@ int main(int argc, char *argv[]) {
 
     Command_Box cmd_box = {.command_text = strung_init("")};
 
-    Info_box info = {.file_path = "\0", .error = false};
+    Info_box info = {.file_path = "\0", .unsaved_changes = false, .error = false};
     
     Settings settings = load_settings(&editor, &info ,&cmd_box, &fb);
     // Settings settings = {0};
@@ -1372,6 +1375,7 @@ int main(int argc, char *argv[]) {
                         fb_search(&fb);
                     }
                 } else {
+                    info.unsaved_changes = true;
                     if(editor.selection){
                         if (editor.selection_start > editor.selection_end){
                             SEL_SWAP(editor.selection_start, editor.selection_end);
@@ -1848,7 +1852,7 @@ int main(int argc, char *argv[]) {
                         editor.selection_start = 0;
                         editor.selection_end = editor.text.size;
                     } else if (keybind_matches(&event, settings.keybinds.savef)) {
-                        save_file(&editor);
+                        save_file(&editor, &info);
                     } else if (keybind_matches(&event, settings.keybinds.openf)) {
                         cmd_box.in_command = true;
                         cmdbox_reinit(&cmd_box, "Open File:", CMD_OPENF);

@@ -270,12 +270,14 @@ void open_file(Editor *editor, Info_box* info ,Command_Box *cmd_box, char* filep
 
 }
 
-void save_file(Editor *editor){
+void save_file(Editor *editor, Info_box *info){
     FILE *f = fopen(editor->file_path, "w");
 
     if (f == NULL){
         return; // TODO: HAVE A POPUP THAT DISPLAYS ERROR
     }
+
+    info->unsaved_changes = false;
 
     if(editor->file_password){
         unsigned char hash[EVP_MAX_MD_SIZE];
