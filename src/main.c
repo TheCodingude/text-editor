@@ -1240,7 +1240,7 @@ void render_info_box(Info_box info, SDL_Window* window){
     SDL_GetWindowSize(window, &w, &h);
 
     float scale_prompt = 0.37f;
-    float box_padding = 10.0f;
+    float box_padding = 50.0f;
 
     float x = 0;
     float y = h;
@@ -1288,7 +1288,7 @@ int main(int argc, char *argv[]) {
 
     Command_Box cmd_box = {.command_text = strung_init("")};
 
-    Info_box info = {.file_path = "\0", .error = true};
+    Info_box info = {.file_path = "\0", .error = false};
     
     Settings settings = load_settings(&editor, &info ,&cmd_box, &fb);
     // Settings settings = {0};
@@ -1343,6 +1343,7 @@ int main(int argc, char *argv[]) {
 
     SDL_StartTextInput();
 
+    glClearColor(0.11f, 0.11f, 0.10f, 1.0f); 
     SDL_EventState(SDL_DROPFILE, SDL_ENABLE); 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
