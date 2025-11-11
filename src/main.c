@@ -1236,9 +1236,9 @@ bool keybind_matches(const SDL_Event *event, const Keybind kb)
            (alt_held   == kb.alt);
 }
 
-void render_info_box(Info_box info, SDL_Window* window){
+void render_info_box(Info_box info, Editor* editor){
     int w, h;
-    SDL_GetWindowSize(window, &w, &h);
+    SDL_GetWindowSize(editor->window, &w, &h);
 
     float scale_prompt = 0.37f;
     float box_padding = 50.0f;
@@ -1269,7 +1269,13 @@ void render_info_box(Info_box info, SDL_Window* window){
     if(info.unsaved_changes) strung_append(&thing, " [UNSAVED]");
 
     if (thing.data[0] == '\0') renderText("No file opened", prompt_x, prompt_y, scale_prompt, WHITE);
-    else renderText(thing.data, prompt_x, prompt_y, scale_prompt, WHITE);
+    else{
+        renderText(thing.data, prompt_x, prompt_y, scale_prompt, WHITE);
+        char buf[32];
+
+        sprintf(buf, "[%d,%d]", editor->cursor.line, editor->cursor.pos_in_line);
+        renderText(buf, w - 200, prompt_y, scale_prompt, WHITE);
+    }
 
 
 }
@@ -2106,7 +2112,7 @@ int main(int argc, char *argv[]) {
                 render_selection(&editor,editor.scale, &editor.scroll);
                 renderCursorScrolled(&editor,editor.scale, &editor.scroll);
             }
-            render_info_box(info, editor.window);
+            render_info_box(info, &editor);
         }
         
         if(cmd_box.in_command){

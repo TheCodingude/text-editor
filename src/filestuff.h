@@ -223,6 +223,9 @@ void open_file_into_strung(Strung *buff, char* file_path){
 
 void open_file(Editor *editor, Info_box* info ,Command_Box *cmd_box, char* filepath){
     editor->file_path = filepath;
+    info->unsaved_changes = false;
+
+
 
     Strung tmp = strung_init(filepath);
     int idx = strung_search_right(&tmp, '/');
