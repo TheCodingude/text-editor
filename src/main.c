@@ -1236,7 +1236,7 @@ bool keybind_matches(const SDL_Event *event, const Keybind kb)
            (alt_held   == kb.alt);
 }
 
-void render_info_box(Info_box info, Editor* editor){
+void render_info_box(Info_box info, Editor* editor, bool in_cmd){
     int w, h;
     SDL_GetWindowSize(editor->window, &w, &h);
 
@@ -1252,13 +1252,26 @@ void render_info_box(Info_box info, Editor* editor){
 
     if(info.error) glColor4f(0.5, 0.0, 0.0, 1.0f);
     else glColor4f(0.0, 0.0, 0.0, 1.0f);
+    
+    
+    
+    if(in_cmd){
+        float cmdbox_pos = (90 * h) / 100;
 
+        float difference = h - cmdbox_pos;
+
+        y -= difference;
+        y1 -= difference;
+
+    }
     glBegin(GL_QUADS);
         glVertex2f(x, y1);
         glVertex2f(x1, y1);
         glVertex2f(x1, y);
         glVertex2f(x, y);
     glEnd();
+    
+
 
 
     float prompt_x = x + box_padding;
@@ -2112,7 +2125,7 @@ int main(int argc, char *argv[]) {
                 render_selection(&editor,editor.scale, &editor.scroll);
                 renderCursorScrolled(&editor,editor.scale, &editor.scroll);
             }
-            render_info_box(info, &editor);
+            render_info_box(info, &editor, cmd_box.in_command);
         }
         
         if(cmd_box.in_command){
