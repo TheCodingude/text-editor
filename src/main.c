@@ -1264,10 +1264,13 @@ void render_info_box(Info_box info, SDL_Window* window){
     float prompt_x = x + box_padding;
     float prompt_y = y - 25;
 
-    if (info.file_path[0] == '\0') renderText("No file opened", prompt_x, prompt_y, scale_prompt, WHITE);
-    else renderText(info.file_path, prompt_x, prompt_y, scale_prompt, WHITE);
+    Strung thing = strung_init(info.file_path);
+    
+    if(info.unsaved_changes) strung_append(&thing, " [UNSAVED]");
 
-    if(info.unsaved_changes) renderText("(unsaved changes)", prompt_x + 200, prompt_y, scale_prompt, WHITE);
+    if (thing.data[0] == '\0') renderText("No file opened", prompt_x, prompt_y, scale_prompt, WHITE);
+    else renderText(thing.data, prompt_x, prompt_y, scale_prompt, WHITE);
+
 
 }
 
