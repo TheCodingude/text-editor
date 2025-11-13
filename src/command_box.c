@@ -10,6 +10,7 @@ typedef enum{
     CMD_PASS_ENTER,
     CMD_FONT_CHANGE, // changes font (obviously)
     CMD_KEYBINDS, // Shows keybind editing screen
+    CMD_AUTOSAVE // enable/disable autosave
 }Command_type;
 
 typedef struct{
@@ -187,6 +188,11 @@ void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box, File_Browser *fb
         else if(strcmp(tokens[0]->data, "keybinds") == 0){
             editkeys = true;
             cmdbox_reinit(cmd_box, "Enter Command: ", CMD_NONE);
+            cmd_box->in_command = false;
+        }
+        else if(strcmp(tokens[0]->data, "autosave") == 0){
+            if(token_count < 2) return;
+            settings->autosave = STRUNG_PNTR_CMP(tokens[1], "false") ? false : true;
             cmd_box->in_command = false;
         }
         else{
