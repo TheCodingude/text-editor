@@ -1,6 +1,7 @@
 // General Settings
 font|fonts/MapleMono-Regular.ttf
 ed-scale|0.300000
+autosave|true
 
 // Previous State
 last_opened_file|
