@@ -5,3 +5,4 @@ test
 .vscode
 old
 editor_settings
+*.test
