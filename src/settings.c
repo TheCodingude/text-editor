@@ -139,7 +139,8 @@ Settings load_settings(Editor* editor, Info_box* info,Command_Box* cmd, File_Bro
     // this might be a good approach or maybe not i have no idea 
     Settings settings = {
         .path_to_font = DEFAULT_PATH_TO_FONT,
-        .editor_scale = DEFAULT_EDITOR_SCALE
+        .editor_scale = DEFAULT_EDITOR_SCALE,
+        .autosave = true
     };
 
     Strung fc = strung_init("");
@@ -158,8 +159,6 @@ Settings load_settings(Editor* editor, Info_box* info,Command_Box* cmd, File_Bro
     }
     
     int line_count = 0;
-
-
 
     Strung** lines = strung_split_by_delim(&fc, '\n', &line_count);
     Strung keybind_data = strung_init("");

@@ -279,6 +279,8 @@ typedef struct{
 typedef struct{
     char* path_to_font;
     float editor_scale;
+    bool autosave;
+
 
     Keybinds keybinds;
 }Settings;
@@ -1316,9 +1318,6 @@ int main(int argc, char *argv[]) {
     Info_box info = {.file_path = "\0", .unsaved_changes = false, .error = false};
     
     Settings settings = load_settings(&editor, &info ,&cmd_box, &fb);
-    // Settings settings = {0};
-    // settings.path_to_font = "fonts/MapleMono-Regular.ttf";
-    // settings.editor_scale = 0.3f;
 
     if(TTF_Init() < 0){
         fprintf(stderr, "Failed to initilize TTF\n");
@@ -1396,8 +1395,13 @@ int main(int argc, char *argv[]) {
                         strung_append(&fb.search_buffer, event.text.text);
                         fb_search(&fb);
                     }
-                } else {
-                    info.unsaved_changes = true;
+                }else if(cmd_box.in_command){
+                    if(!(SDL_GetModState() & KMOD_CTRL)){
+                        strung_insert_string(&cmd_box.command_text, event.text.text, cmd_box.cursor);
+                        cmd_box.cursor += strlen(event.text.text);
+                    }
+
+                }else {
                     if(editor.selection){
                         if (editor.selection_start > editor.selection_end){
                             SEL_SWAP(editor.selection_start, editor.selection_end);
@@ -1409,18 +1413,15 @@ int main(int argc, char *argv[]) {
                         editor.selection_end = 0;
                         editor.selection = false;
                     }
-                    if (!(SDL_GetModState() & KMOD_CTRL) && !cmd_box.in_command) {
+                    if (!(SDL_GetModState() & KMOD_CTRL)) {                        
                         save_undo_state(&editor);
                         strung_insert_string(&editor.text, event.text.text, editor.cursor.pos_in_text);
                         editor.cursor.pos_in_text += strlen(event.text.text);
                         editor.cursor.pos_in_line += strlen(event.text.text);
                         editor_recalculate_lines(&editor);
-                    } else if(cmd_box.in_command){
-                        if(!(SDL_GetModState() & KMOD_CTRL)){
-                            strung_insert_string(&cmd_box.command_text, event.text.text, cmd_box.cursor);
-                            cmd_box.cursor += strlen(event.text.text);
-                        }
                     }
+                    if(settings.autosave) save_file(&editor, &info);
+                    else info.unsaved_changes = true;
                 }
             } else if (event.type == SDL_KEYDOWN) {
                 if(cmd_box.in_command){
@@ -1653,7 +1654,8 @@ int main(int argc, char *argv[]) {
                                 if (editor.cursor.pos_in_line > 0) editor.cursor.pos_in_line--;
                             }
                         }
-
+                        if(settings.autosave) save_file(&editor, &info);
+                        else info.unsaved_changes = true;   
                     } else if (keybind_matches(&event, settings.keybinds.delete_char)) {
                         if (cmd_box.in_command) {
                             if (cmd_box.cursor < cmd_box.command_text.size) {
@@ -1664,7 +1666,8 @@ int main(int argc, char *argv[]) {
                             strung_remove_char(&editor.text, editor.cursor.pos_in_text);
                             editor_recalculate_lines(&editor); // Can optimize a bit if i recalculate only when deleting newline
                         }
-
+                        if(settings.autosave) save_file(&editor, &info);
+                        else info.unsaved_changes = true;                        
                     } else if (keybind_matches(&event, settings.keybinds.newline)) {
                         if(cmd_box.in_command){ 
                             cmdbox_command(&editor, &info, &cmd_box, &fb, &settings);
@@ -1676,13 +1679,15 @@ int main(int argc, char *argv[]) {
                             editor.cursor.pos_in_line = 0;
                             editor_recalculate_lines(&editor);
                         }
-
+                        if(settings.autosave) save_file(&editor, &info);
+                        else info.unsaved_changes = true;
                     } else if (keybind_matches(&event, settings.keybinds.indent)) {
                         save_undo_state(&editor);
                         strung_insert_string(&editor.text, "    ", editor.cursor.pos_in_text);
                         editor.cursor.pos_in_line += 4;
                         editor.cursor.pos_in_text += 4;
-
+                        if(settings.autosave) save_file(&editor, &info);
+                        else info.unsaved_changes = true;
                     } else if (keybind_matches(&event, settings.keybinds.start_of_line)) {
                         editor.cursor.pos_in_text = editor.lines.lines[editor.cursor.line].start;
                         editor.cursor.pos_in_line = 0;
@@ -1891,6 +1896,9 @@ int main(int argc, char *argv[]) {
                             editor.selection_start = 0;
                             editor.selection_end = 0;
                             editor.selection = false;
+
+                            if(settings.autosave) save_file(&editor, &info);
+                            else info.unsaved_changes = true;                            
                         } else {}                            
                     } else if (keybind_matches(&event, settings.keybinds.copy)) {
                         if(editor.selection){
@@ -1910,12 +1918,16 @@ int main(int argc, char *argv[]) {
                         editor.cursor.pos_in_text += strlen(text);
                         SDL_free(text);
                         editor_recalculate_lines(&editor);
+                        if(settings.autosave) save_file(&editor, &info);
+                        else info.unsaved_changes = true;
                     } else if (keybind_matches(&event, settings.keybinds.undo)) {
                         undo(&editor);
                         editor_recalculate_lines(&editor);
                     }else if(keybind_matches(&event, settings.keybinds.redo)){
                         editor_recalculate_lines(&editor);
                         redo(&editor);
+                        if(settings.autosave) save_file(&editor, &info);
+                        else info.unsaved_changes = true;                        
                     }else if (keybind_matches(&event, settings.keybinds.scroll_up)) {
                         editor.scroll.y_offset -= 5;
                         editor.cursor.line -= 5;
