@@ -188,6 +188,9 @@ Settings load_settings(Editor* editor, Info_box* info,Command_Box* cmd, File_Bro
         else if(strcmp(tokens[0]->data, "ed-scale") == 0){
             settings.editor_scale = atof(tokens[1]->data);
         }
+        else if(strcmp(tokens[0]->data, "autosave") == 0){
+            settings.autosave = STRUNG_PNTR_CMP(tokens[1], "true") ? true : false;
+        }
         else if(strcmp(tokens[0]->data, "last_opened_file") == 0){
             open_file(editor, info, cmd, tokens[1]->data);
             Strung tmp = strung_init(tokens[1]->data);
@@ -344,6 +347,7 @@ void update_and_save_settings(const Settings settings, const Editor editor){
     fprintf(f, "// General Settings\n"
                "font|%s\n"
                "ed-scale|%f\n"
+               "autosave|%s\n"
                "\n// Previous State\n"
                "last_opened_file|%s\n"
                "cur_pos_in_text|%i\n"
@@ -354,6 +358,8 @@ void update_and_save_settings(const Settings settings, const Editor editor){
             ,            
             settings.path_to_font,
             editor.scale,
+            settings.autosave ? "true" : "false",
+
             editor.file_path,
             editor.cursor.pos_in_text,
             editor.cursor.pos_in_line,
