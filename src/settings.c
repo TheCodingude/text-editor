@@ -199,13 +199,13 @@ Settings load_settings(Editor* editor, Info_box* info,Command_Box* cmd, File_Bro
             fb->relative_path = tmp;
         }
         else if(strcmp(tokens[0]->data, "cur_pos_in_text") == 0){
-            editor->cursor.pos_in_text = atoi(tokens[1]->data);
+            editor->cursors[0].pos_in_text = atoi(tokens[1]->data);
         }
         else if(strcmp(tokens[0]->data, "cur_pos_in_line") == 0){
-            editor->cursor.pos_in_line = atoi(tokens[1]->data);
+            editor->cursors[0].pos_in_line = atoi(tokens[1]->data);
         }
         else if(strcmp(tokens[0]->data, "cur_line") == 0){
-            editor->cursor.line = atoi(tokens[1]->data);
+            editor->cursors[0].line = atoi(tokens[1]->data);
         }
         else if(strcmp(tokens[0]->data, "scroll_x") == 0){
             editor->scroll.x_offset = atoi(tokens[1]->data);
@@ -361,9 +361,9 @@ void update_and_save_settings(const Settings settings, const Editor editor){
             settings.autosave ? "true" : "false",
 
             editor.file_path,
-            editor.cursor.pos_in_text,
-            editor.cursor.pos_in_line,
-            editor.cursor.line,
+            editor.cursors[0].pos_in_text,
+            editor.cursors[0].pos_in_line,
+            editor.cursors[0].line,
             editor.scroll.x_offset,
             editor.scroll.y_offset
             );

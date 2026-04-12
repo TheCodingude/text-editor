@@ -261,9 +261,9 @@ void open_file(Editor *editor, Info_box* info ,Command_Box *cmd_box, char* filep
 
 
 
-    editor->cursor.pos_in_text = 0;
-    editor->cursor.pos_in_line = 0;
-    editor->cursor.line = 0;
+    editor->cursors[0].pos_in_text = 0;
+    editor->cursors[0].pos_in_line = 0;
+    editor->cursors[0].line = 0;
     editor->scroll.x_offset = 0;
     editor->scroll.y_offset = 0;
 
