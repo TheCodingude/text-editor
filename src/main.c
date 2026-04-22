@@ -1371,8 +1371,8 @@ int main(int argc, char *argv[]) {
         .scale = DEFAULT_EDITOR_SCALE
     };
 
-    editor_new_cursor(&editor, 25); // initial cursor
-    editor_new_cursor(&editor, 6);
+    editor_new_cursor(&editor, 0); // initial cursor
+    editor_new_cursor(&editor, 25);
     // editor_new_cursor()
 
     char buffer[PATH_MAX];
@@ -1469,26 +1469,28 @@ int main(int argc, char *argv[]) {
                     }
 
                 }else {
-                    if(editor.selection){
-                        if (editor.selection_start > editor.selection_end){
-                            SEL_SWAP(editor.selection_start, editor.selection_end);
+                    save_undo_state(&editor);
+                    for(int i = 0; i < editor.cursor_count; i++){
+                        if(editor.selection){
+                            if (editor.selection_start > editor.selection_end){
+                                SEL_SWAP(editor.selection_start, editor.selection_end);
+                            }
+                            strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
+                            editor.cursors[i].pos_in_line -= editor.selection_end - editor.selection_start;
+                            editor.cursors[i].pos_in_text -= editor.selection_end - editor.selection_start;
+                            editor.selection_start = 0;
+                            editor.selection_end = 0;
+                            editor.selection = false;
                         }
-                        strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
-                        editor.cursors[0].pos_in_line -= editor.selection_end - editor.selection_start;
-                        editor.cursors[0].pos_in_text -= editor.selection_end - editor.selection_start;
-                        editor.selection_start = 0;
-                        editor.selection_end = 0;
-                        editor.selection = false;
+                        if (!(SDL_GetModState() & KMOD_CTRL)) {                        
+                            strung_insert_string(&editor.text, event.text.text, editor.cursors[i].pos_in_text);
+                            editor.cursors[i].pos_in_text += strlen(event.text.text);
+                            editor.cursors[i].pos_in_line += strlen(event.text.text);
+                            editor_recalculate_lines(&editor);
+                        }
+                        if(settings.autosave) save_file(&editor, &info);
+                        else info.unsaved_changes = true;
                     }
-                    if (!(SDL_GetModState() & KMOD_CTRL)) {                        
-                        save_undo_state(&editor);
-                        strung_insert_string(&editor.text, event.text.text, editor.cursors[0].pos_in_text);
-                        editor.cursors[0].pos_in_text += strlen(event.text.text);
-                        editor.cursors[0].pos_in_line += strlen(event.text.text);
-                        editor_recalculate_lines(&editor);
-                    }
-                    if(settings.autosave) save_file(&editor, &info);
-                    else info.unsaved_changes = true;
                 }
             } else if (event.type == SDL_KEYDOWN) {
                 if(cmd_box.in_command){
@@ -1680,45 +1682,47 @@ int main(int argc, char *argv[]) {
                         }
 
                     } else if (key == SDLK_x) {
-                        // cut: (no-op here in your original)
+                        
                     }
 
                 } else {
                     SDL_Keycode key = event.key.keysym.sym;
 
                     if (keybind_matches(&event, settings.keybinds.remove_char)) {
-                        if(editor.selection){
-                            if (editor.selection_end < editor.selection_start) {
-                                int temp = editor.selection_end;
-                                editor.selection_end = editor.selection_start;
-                                editor.selection_start = temp;
-                            }
-                            strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
-                            editor.cursors[0].pos_in_text = editor.selection_start;
-                            editor.selection = false;
-                            editor.selection_start = 0;
-                            editor.selection_end = 0;
-                            editor_recalc_cursor_pos_and_line(&editor);
-                        } else if (editor.cursors[0].pos_in_text > 0) {
-                            save_undo_state(&editor);
-
-                            if (editor.text.data[editor.cursors[0].pos_in_text - 1] == '\n') {
-                                // Move cursor to end of previous line
-                                int pos = editor.cursors[0].pos_in_text - 2;
-                                int col = 0;
-                                while (pos >= 0 && editor.text.data[pos] != '\n') {
-                                    pos--;
-                                    col++;
+                        for(int i = 0; i < editor.cursor_count; i++){
+                            if(editor.selection){
+                                if (editor.selection_end < editor.selection_start) {
+                                    int temp = editor.selection_end;
+                                    editor.selection_end = editor.selection_start;
+                                    editor.selection_start = temp;
                                 }
-                                editor.cursors[0].pos_in_text--;
-                                editor.cursors[0].line--;
-                                editor.cursors[0].pos_in_line = col;
-                                strung_remove_char(&editor.text, editor.cursors[0].pos_in_text);
-                                editor_recalculate_lines(&editor);
-                            } else {
-                                strung_remove_char(&editor.text, editor.cursors[0].pos_in_text - 1);
-                                editor.cursors[0].pos_in_text--;
-                                if (editor.cursors[0].pos_in_line > 0) editor.cursors[0].pos_in_line--;
+                                strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
+                                editor.cursors[i].pos_in_text = editor.selection_start;
+                                editor.selection = false;
+                                editor.selection_start = 0;
+                                editor.selection_end = 0;
+                                editor_recalc_cursor_pos_and_line(&editor);
+                            } else if (editor.cursors[i].pos_in_text > 0) {
+                                save_undo_state(&editor);
+    
+                                if (editor.text.data[editor.cursors[i].pos_in_text - 1] == '\n') {
+                                    // Move cursor to end of previous line
+                                    int pos = editor.cursors[i].pos_in_text - 2;
+                                    int col = 0;
+                                    while (pos >= 0 && editor.text.data[pos] != '\n') {
+                                        pos--;
+                                        col++;
+                                    }
+                                    editor.cursors[i].pos_in_text--;
+                                    editor.cursors[i].line--;
+                                    editor.cursors[i].pos_in_line = col;
+                                    strung_remove_char(&editor.text, editor.cursors[i].pos_in_text);
+                                    editor_recalculate_lines(&editor);
+                                } else {
+                                    strung_remove_char(&editor.text, editor.cursors[i].pos_in_text - 1);
+                                    editor.cursors[i].pos_in_text--;
+                                    if (editor.cursors[i].pos_in_line > 0) editor.cursors[i].pos_in_line--;
+                                }
                             }
                         }
                         if(settings.autosave) save_file(&editor, &info);
@@ -1986,14 +1990,16 @@ int main(int argc, char *argv[]) {
                         } else {}
                     } else if (keybind_matches(&event, settings.keybinds.paste)) {
                         save_undo_state(&editor);
-                        char* text = SDL_GetClipboardText();
-                        strung_insert_string(&editor.text, text, editor.cursors[0].pos_in_text);
-                        editor.cursors[0].pos_in_line += strlen(text);
-                        editor.cursors[0].pos_in_text += strlen(text);
-                        SDL_free(text);
-                        editor_recalculate_lines(&editor);
-                        if(settings.autosave) save_file(&editor, &info);
-                        else info.unsaved_changes = true;
+                        for(int i = 0; i < editor.cursor_count; i++){
+                            char* text = SDL_GetClipboardText();
+                            strung_insert_string(&editor.text, text, editor.cursors[i].pos_in_text);
+                            editor.cursors[i].pos_in_line += strlen(text);
+                            editor.cursors[i].pos_in_text += strlen(text);
+                            SDL_free(text);
+                            editor_recalculate_lines(&editor);
+                            if(settings.autosave) save_file(&editor, &info);
+                            else info.unsaved_changes = true;
+                        }
                     } else if (keybind_matches(&event, settings.keybinds.undo)) {
                         undo(&editor);
                         editor_recalculate_lines(&editor);
