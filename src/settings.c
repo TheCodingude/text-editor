@@ -1,4 +1,4 @@
-
+// #include <stdio.h>
 
 // DEFAULT SETTINGS
 
@@ -236,7 +236,7 @@ static void format_key(const Keybind *kb, char *keybuf, size_t kbsz, char *modbu
 
     if (idx == 0) {
         /* write "none" when there are no modifiers; snprintf will safely truncate if msz is small */
-        snprintf(modbuf, msz, "none");
+        snprintf(modbuf, msz, "non");
     } else {
         modbuf[idx] = '\0';
     }
@@ -338,11 +338,49 @@ void save_keybinds(const Settings settings){
 }
 
 
+Strung save_da_cursors(const Editor editor){
+    
+    // is this a good way too do it, probably not.
+    // does it work? yes, so dont fucking touch it
+
+    Strung str = strung_init("");
+    char buf[10];
+    
+    strung_append(&str, "cur_pos_in_text|[");
+    for(int i = 0; i < editor.cursor_count-1; i++){
+        snprintf(buf, 10, "%d,", editor.cursors[i].pos_in_text);
+        strung_append(&str, buf);                                                                             
+    }
+    snprintf(buf, 10, "%d]\n", editor.cursors[editor.cursor_count].pos_in_text);
+    strung_append(&str, buf);
+
+    
+    strung_append(&str, "cur_pos_in_line|[");
+    for(int i = 0; i < editor.cursor_count-1; i++){
+        snprintf(buf, 10, "%d,", editor.cursors[i].pos_in_line);
+        strung_append(&str, buf);                                                                             
+    }
+    snprintf(buf, 10, "%d]\n", editor.cursors[editor.cursor_count].pos_in_line);
+    strung_append(&str, buf);
+
+    strung_append(&str, "cur_line|[");
+    for(int i = 0; i < editor.cursor_count-1; i++){
+        snprintf(buf, 10, "%d,", editor.cursors[i].line);
+        strung_append(&str, buf);                                                                             
+    }
+    snprintf(buf, 10, "%d]\n", editor.cursors[editor.cursor_count].line);
+    strung_append(&str, buf);
+
+    return str; 
+}
+
 
 void update_and_save_settings(const Settings settings, const Editor editor){
     
     FILE* f = fopen("editor_settings", "w");
 
+    char buffer[100];
+    Strung curs_str = save_da_cursors(editor);
 
     fprintf(f, "// General Settings\n"
                "font|%s\n"
@@ -350,9 +388,8 @@ void update_and_save_settings(const Settings settings, const Editor editor){
                "autosave|%s\n"
                "\n// Previous State\n"
                "last_opened_file|%s\n"
-               "cur_pos_in_text|%i\n"
-               "cur_pos_in_line|%i\n"
-               "cur_line|%i\n"
+               "cur_count|%i\n"
+               "%s"
                "scroll_x|%i\n"
                "scroll_y|%i\n"
             ,            
@@ -361,9 +398,8 @@ void update_and_save_settings(const Settings settings, const Editor editor){
             settings.autosave ? "true" : "false",
 
             editor.file_path,
-            editor.cursors[0].pos_in_text,
-            editor.cursors[0].pos_in_line,
-            editor.cursors[0].line,
+            editor.cursor_count, 
+            curs_str.data,   
             editor.scroll.x_offset,
             editor.scroll.y_offset
             );
