@@ -121,6 +121,12 @@ int load_keybinds(Settings* settings, Strung** lines, int line, int lc){
         }else if(STRUNG_PNTR_CMP(tokens[0], "scroll_down")){
             settings->keybinds.scroll_down = figure_out_keybind(tokens[1]->data, tokens[2]->data);
             settings->keybinds.scroll_down.description = "Scrolls down x amount of lines";
+        }else if(STRUNG_PNTR_CMP(tokens[0], "new_cursor_down")){
+            settings->keybinds.new_cursor_down = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.new_cursor_down.description = "Adds a new cursor below";
+        }else if(STRUNG_PNTR_CMP(tokens[0], "new_cursor_up")){
+            settings->keybinds.new_cursor_up = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.new_cursor_up.description = "Adds a new cursor above";
         }
 
 
@@ -331,6 +337,12 @@ void save_keybinds(const Settings settings){
 
     format_key(&settings.keybinds.scroll_down, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
     fprintf(f, "scroll_down|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.new_cursor_down, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "new_cursor_down|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.new_cursor_up, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "new_cursor_up|%s|%s\n", keybuf, modbuf);
 
     fprintf(f, "KEYBINDS-END\n");
 

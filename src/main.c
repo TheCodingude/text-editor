@@ -218,7 +218,7 @@ typedef struct{
     
 
     char* file_path;
-    char* file_password;
+    char* file_password; // i still gotta finish this feature
 
     Strung text;
     Lines lines;
@@ -239,7 +239,7 @@ void editor_center_cursor(Editor *editor);
 TTF_Font *font; // global font for now
 bool editkeys = false;
 
-// y'know i think i could just do like an array of modifier keys maybe?
+// y'know i think i could just do like an array of modifier keys maybe? ykw this 100% better that is what i think (i dont think)
 typedef struct{
     SDL_KeyCode key;
     bool ctrl;
@@ -276,6 +276,8 @@ typedef struct{
     Keybind redo;
     Keybind scroll_up;
     Keybind scroll_down;
+    Keybind new_cursor_down;
+    Keybind new_cursor_up;
 }Keybinds;
 
 typedef struct{
@@ -1303,7 +1305,6 @@ void render_info_box(Info_box info, Editor* editor, bool in_cmd){
 
 }
 
-#if 1
 void editor_new_cursor(Editor *editor, int pos_in_text) {
     int new_capacity = editor->cursor_count + 1;
     Cursor *new_items = realloc(editor->cursors, new_capacity * sizeof(Cursor));
@@ -1312,8 +1313,6 @@ void editor_new_cursor(Editor *editor, int pos_in_text) {
         return;
     }
     editor->cursors = new_items;
-
-    
     int idx = editor->cursor_count;
 
     
@@ -1334,32 +1333,26 @@ void editor_new_cursor(Editor *editor, int pos_in_text) {
     editor->cursor_count++;
 }
 
-#else
-void editor_new_cursor(Editor *editor, int pos_in_text){
-
-    Cursor cur = {0};
-
-    cur.pos_in_text = pos_in_text;
-
-    for(int i = 0; i < editor->lines.size; i++){
-        Line ln = editor->lines.lines[i];
-        if(pos_in_text <= ln.end && pos_in_text >= ln.start){
-            cur.line = i+1;
-            cur.pos_in_line = pos_in_text - ln.start;
-        }
-    }
-
+void editor_new_cursor_line(Editor *editor, int line, int pos_in_line){ 
     int new_capacity = editor->cursor_count + 1;
-    Cursor *new_items = (Cursor*)realloc(editor->cursors, new_capacity * sizeof(Cursor));
+    Cursor *new_items = realloc(editor->cursors, new_capacity * sizeof(Cursor));
     if (!new_items) {
         fprintf(stderr, "Failed to allocate memory in %s\n", __func__);
         return;
     }
     editor->cursors = new_items;
-    editor->cursors[editor->cursor_count++] = cur;
+    int idx = editor->cursor_count;
 
+    Cursor cur = {0};
+    cur.line = line;
+    cur.pos_in_line = pos_in_line;
+    cur.pos_in_text = editor->lines.lines[line].start + pos_in_line + 1;
+    
+    printf("hurry: %d", cur.pos_in_text);
+
+    editor->cursors[idx] = cur;
+    editor->cursor_count++;
 }
-#endif
 
 int main(int argc, char *argv[]) {
     
@@ -1372,8 +1365,7 @@ int main(int argc, char *argv[]) {
     };
 
     editor_new_cursor(&editor, 0); // initial cursor
-    editor_new_cursor(&editor, 25);
-    // editor_new_cursor()
+
 
     char buffer[PATH_MAX];
     if(!(realpath(".", buffer))) fprintf(stderr, "Failed, A lot (at opening init directory)\n");
@@ -1773,6 +1765,7 @@ int main(int argc, char *argv[]) {
                         strung_reset(&fb.search_buffer);
 
                     } else if (keybind_matches(&event, settings.keybinds.cmdbox)) {
+        
                         cmdbox_reinit(&cmd_box, "Enter Command:", CMD_NONE);
                         cmd_box.in_command = !cmd_box.in_command;
 
@@ -2018,6 +2011,14 @@ int main(int argc, char *argv[]) {
                         editor.cursors[0].line += 5;
                         clamp_scroll(&editor, &editor.scroll,editor.scale);
 
+                    } else if (keybind_matches(&event, settings.keybinds.new_cursor_down)) {
+                        int target_line = editor.cursors[0].line + 1;
+
+                        editor_new_cursor_line(&editor, target_line, editor.cursors[0].pos_in_line);
+                    } else if (keybind_matches(&event, settings.keybinds.new_cursor_up)) {
+                        int target_line = editor.cursors[0].line - 1;
+
+                        editor_new_cursor_line(&editor, target_line, editor.cursors[0].pos_in_line);
                     } else {
                         // default: nothing
                     }
