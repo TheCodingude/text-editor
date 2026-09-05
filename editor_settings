@@ -39,4 +39,6 @@ undo|122|c
 redo|122|cs
 scroll_up|1073741899|non
 scroll_down|1073741902|non
+new_cursor_down|1073741905|ca
+new_cursor_up|1073741906|ca
 KEYBINDS-END
