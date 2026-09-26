@@ -46,6 +46,7 @@ int load_keybinds(Settings* settings, Strung** lines, int line, int lc){
         int token_count = 0;
         Strung** tokens = strung_split_by_delim(lines[i], '|', &token_count);
 
+        // readable
         if(STRUNG_PNTR_CMP(tokens[0], "remove_char")){
             settings->keybinds.remove_char = figure_out_keybind(tokens[1]->data, tokens[2]->data);
             settings->keybinds.remove_char.description = "Delete Character Before Cursor";

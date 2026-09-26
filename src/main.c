@@ -1297,9 +1297,13 @@ void render_info_box(Info_box info, Editor* editor, bool in_cmd){
     else{
         renderText(thing.data, prompt_x, prompt_y, scale_prompt, WHITE);
         char buf[32];
+        int init_x = w - 200;
 
-        sprintf(buf, "[%d,%d]", editor->cursors[0].line, editor->cursors[0].pos_in_line);
-        renderText(buf, w - 200, prompt_y, scale_prompt, WHITE);
+        for(int i = 0; i < editor->cursor_count; i++){
+
+            sprintf(buf, "[%d,%d]", editor->cursors[i].line, editor->cursors[i].pos_in_line);
+            renderText(buf, init_x + (65 * (i+1)), prompt_y, scale_prompt, WHITE); // TODO: make this scale with number of characters 
+        }
     }
 
 
@@ -2139,8 +2143,19 @@ int main(int argc, char *argv[]) {
                 static int last_click_x = 0, last_click_y = 0;
                 Uint32 now = SDL_GetTicks();
                 int double_click_distance = 5; // pixels
-
+                
                 if (event.button.button == SDL_BUTTON_LEFT && !cmd_box.in_command) {        
+
+                    if(editor.cursor_count > 1){
+                        Cursor *temp = realloc(editor.cursors, 1 * sizeof(Cursor));
+                        if(temp != NULL){
+                            editor.cursors = temp;
+                            editor.cursor_count = 1;
+                        } else{
+                            // panic? idk
+                        }
+                    }
+
                     bool is_double_click = (now - last_click_time < 500 &&
                         abs(event.button.x - last_click_x) < double_click_distance &&
                         abs(event.button.y - last_click_y) < double_click_distance);
