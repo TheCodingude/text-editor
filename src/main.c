@@ -1499,7 +1499,7 @@ int main(int argc, char *argv[]) {
                         for (int i = 0; i < editor.cursor_count; i++) {
                             Cursor *cur = &editor.cursors[i];
 
-                            if (cur->pos_in_text > end) {
+                            if (cur->pos_in_text >= end) {
                                 cur->pos_in_text -= deleted_len;
                             } else if (cur->pos_in_text > start) {
                                 cur->pos_in_text = start;
@@ -1761,42 +1761,75 @@ int main(int argc, char *argv[]) {
                     SDL_Keycode key = event.key.keysym.sym;
 
                     if (keybind_matches(&event, settings.keybinds.remove_char)) {
-                        for(int i = 0; i < editor.cursor_count; i++){
-                            if(editor.selection){
-                                if (editor.selection_end < editor.selection_start) {
-                                    int temp = editor.selection_end;
-                                    editor.selection_end = editor.selection_start;
-                                    editor.selection_start = temp;
-                                }
-                                strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
-                                editor.cursors[i].pos_in_text = editor.selection_start;
-                                editor.selection = false;
-                                editor.selection_start = 0;
-                                editor.selection_end = 0;
-                                editor_recalc_cursor_pos_and_line(&editor);
-                            } else if (editor.cursors[i].pos_in_text > 0) {
-                                save_undo_state(&editor);
-    
-                                if (editor.text.data[editor.cursors[i].pos_in_text - 1] == '\n') {
-                                    // Move cursor to end of previous line
-                                    int pos = editor.cursors[i].pos_in_text - 2;
-                                    int col = 0;
-                                    while (pos >= 0 && editor.text.data[pos] != '\n') {
-                                        pos--;
-                                        col++;
-                                    }
-                                    editor.cursors[i].pos_in_text--;
-                                    editor.cursors[i].line--;
-                                    editor.cursors[i].pos_in_line = col;
-                                    strung_remove_char(&editor.text, editor.cursors[i].pos_in_text);
-                                    editor_recalculate_lines(&editor);
-                                } else {
-                                    strung_remove_char(&editor.text, editor.cursors[i].pos_in_text - 1);
-                                    editor.cursors[i].pos_in_text--;
-                                    if (editor.cursors[i].pos_in_line > 0) editor.cursors[i].pos_in_line--;
+                        if (editor.selection) {
+                            if (editor.selection_end < editor.selection_start) {
+                                SEL_SWAP(editor.selection_start, editor.selection_end);
+                            }
+
+                            int start = editor.selection_start;
+                            int end = editor.selection_end;
+                            int deleted_len = end - start;
+                            save_undo_state(&editor);
+                            strung_delete_range(&editor.text, start, end);
+
+                            for (int i = 0; i < editor.cursor_count; i++) {
+                                if (editor.cursors[i].pos_in_text >= end) {
+                                    editor.cursors[i].pos_in_text -= deleted_len;
+                                } else if (editor.cursors[i].pos_in_text > start) {
+                                    editor.cursors[i].pos_in_text = start;
                                 }
                             }
+
+                            editor.selection = false;
+                            editor.selection_start = 0;
+                            editor.selection_end = 0;
+                        } else {
+                            int *cursor_order = malloc((size_t)editor.cursor_count * sizeof(*cursor_order));
+                            if (!cursor_order) {
+                                fprintf(stderr, "Failed to allocate cursor order\n");
+                                continue;
+                            }
+
+                            for (int i = 0; i < editor.cursor_count; i++) {
+                                cursor_order[i] = i;
+                            }
+                            for (int i = 0; i < editor.cursor_count - 1; i++) {
+                                for (int j = i + 1; j < editor.cursor_count; j++) {
+                                    if (editor.cursors[cursor_order[i]].pos_in_text <
+                                        editor.cursors[cursor_order[j]].pos_in_text) {
+                                        int temp = cursor_order[i];
+                                        cursor_order[i] = cursor_order[j];
+                                        cursor_order[j] = temp;
+                                    }
+                                }
+                            }
+
+                            save_undo_state(&editor);
+                            for (int order = 0; order < editor.cursor_count; order++) {
+                                int cursor_index = cursor_order[order];
+                                int cursor_pos = editor.cursors[cursor_index].pos_in_text;
+                                if (cursor_pos > editor.text.size) {
+                                    cursor_pos = editor.text.size;
+                                    editor.cursors[cursor_index].pos_in_text = cursor_pos;
+                                }
+                                if (cursor_pos == 0) {
+                                    continue;
+                                }
+
+                                int delete_pos = cursor_pos - 1;
+                                strung_remove_char(&editor.text, delete_pos);
+                                for (int i = 0; i < editor.cursor_count; i++) {
+                                    if (i != cursor_index && editor.cursors[i].pos_in_text > delete_pos) {
+                                        editor.cursors[i].pos_in_text--;
+                                    }
+                                }
+                                editor.cursors[cursor_index].pos_in_text = delete_pos;
+                            }
+                            free(cursor_order);
                         }
+
+                        editor_recalculate_lines(&editor);
+                        editor_recalc_cursor_pos_and_line(&editor);
                         if(settings.autosave) save_file(&editor, &info);
                         else info.unsaved_changes = true;   
                     } else if (keybind_matches(&event, settings.keybinds.delete_char)) {
