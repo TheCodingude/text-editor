@@ -1297,12 +1297,12 @@ void render_info_box(Info_box info, Editor* editor, bool in_cmd){
     else{
         renderText(thing.data, prompt_x, prompt_y, scale_prompt, WHITE);
         char buf[32];
-        int init_x = w - 200;
+        int init_x = w - 500;
 
         for(int i = 0; i < editor->cursor_count; i++){
 
-            sprintf(buf, "[%d,%d]", editor->cursors[i].line, editor->cursors[i].pos_in_line);
-            renderText(buf, init_x + (65 * (i+1)), prompt_y, scale_prompt, WHITE); // TODO: make this scale with number of characters 
+            sprintf(buf, "[%d,%d,%d]", editor->cursors[i].line, editor->cursors[i].pos_in_line, editor->cursors[i].pos_in_text);
+            renderText(buf, init_x + (85 * (i+1)), prompt_y, scale_prompt, WHITE); // TODO: make this scale with number of characters 
         }
     }
 
@@ -1466,26 +1466,75 @@ int main(int argc, char *argv[]) {
 
                 }else {
                     save_undo_state(&editor);
-                    for(int i = 0; i < editor.cursor_count; i++){
-                        if(editor.selection){
-                            if (editor.selection_start > editor.selection_end){
-                                SEL_SWAP(editor.selection_start, editor.selection_end);
+                    
+                    if (editor.selection) {
+                        if (editor.selection_start > editor.selection_end) {
+                            SEL_SWAP(editor.selection_start, editor.selection_end);
+                        }
+
+                        int start = editor.selection_start;
+                        int end = editor.selection_end;
+                        int deleted_len = end - start;
+
+                        strung_delete_range(&editor.text, start, end);
+
+                        // Adjust all cursor positions after deletion
+                        for (int i = 0; i < editor.cursor_count; i++) {
+                            Cursor *cur = &editor.cursors[i];
+
+                            if (cur->pos_in_text > end) {
+                                cur->pos_in_text -= deleted_len;
+                            } else if (cur->pos_in_text > start) {
+                                cur->pos_in_text = start;
                             }
-                            strung_delete_range(&editor.text, editor.selection_start, editor.selection_end);
-                            editor.cursors[i].pos_in_line -= editor.selection_end - editor.selection_start;
-                            editor.cursors[i].pos_in_text -= editor.selection_end - editor.selection_start;
-                            editor.selection_start = 0;
-                            editor.selection_end = 0;
-                            editor.selection = false;
                         }
-                        if (!(SDL_GetModState() & KMOD_CTRL)) {                        
-                            strung_insert_string(&editor.text, event.text.text, editor.cursors[i].pos_in_text);
-                            editor.cursors[i].pos_in_text += strlen(event.text.text);
-                            editor.cursors[i].pos_in_line += strlen(event.text.text);
-                            editor_recalculate_lines(&editor);
+
+                        editor.selection_start = 0;
+                        editor.selection_end = 0;
+                        editor.selection = false;
+                    }
+
+                    // Only insert text if Ctrl is not pressed
+                    if (!(SDL_GetModState() & KMOD_CTRL)) {
+
+                        // Sort cursors by position, right to left
+                        for (int i = 0; i < editor.cursor_count - 1; i++) {
+                            for (int j = i + 1; j < editor.cursor_count; j++) {
+                                if (editor.cursors[i].pos_in_text <
+                                    editor.cursors[j].pos_in_text) {
+
+                                    Cursor temp = editor.cursors[i];
+                                    editor.cursors[i] = editor.cursors[j];
+                                    editor.cursors[j] = temp;
+                                }
+                            }
                         }
-                        if(settings.autosave) save_file(&editor, &info);
-                        else info.unsaved_changes = true;
+
+                        size_t len = strlen(event.text.text);
+
+                        // Insert text at each cursor
+                        for (int i = 0; i < editor.cursor_count; i++) {
+                            
+
+                            strung_insert_string(
+                                &editor.text,
+                                event.text.text,
+                                editor.cursors[i].pos_in_text
+                            );
+
+                            editor.cursors[i].pos_in_text += len;
+                            editor.cursors[i].pos_in_line += len;
+                            printf("cursor %d AFTER INSERT = %d\n", i, editor.cursors[i].pos_in_text);
+                        }
+
+                        editor_recalculate_lines(&editor);
+                    }
+
+                    // Save once after all insertions
+                    if (settings.autosave) {
+                        save_file(&editor, &info);
+                    } else {
+                        info.unsaved_changes = true;
                     }
                 }
             } else if (event.type == SDL_KEYDOWN) {
