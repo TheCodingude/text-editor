@@ -128,6 +128,9 @@ int load_keybinds(Settings* settings, Strung** lines, int line, int lc){
         }else if(STRUNG_PNTR_CMP(tokens[0], "new_cursor_up")){
             settings->keybinds.new_cursor_up = figure_out_keybind(tokens[1]->data, tokens[2]->data);
             settings->keybinds.new_cursor_up.description = "Adds a new cursor above";
+        }else if(STRUNG_PNTR_CMP(tokens[0], "fullscreen")){
+            settings->keybinds.fullscreen = figure_out_keybind(tokens[1]->data, tokens[2]->data);
+            settings->keybinds.fullscreen.description = "Fullscreens the application";
         }
 
 
@@ -344,6 +347,10 @@ void save_keybinds(const Settings settings){
 
     format_key(&settings.keybinds.new_cursor_up, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
     fprintf(f, "new_cursor_up|%s|%s\n", keybuf, modbuf);
+
+    format_key(&settings.keybinds.fullscreen, keybuf, sizeof(keybuf), modbuf, sizeof(modbuf));
+    fprintf(f, "fullscreen|%s|%s\n", keybuf, modbuf);
+
 
     fprintf(f, "KEYBINDS-END\n");
 

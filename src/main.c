@@ -208,8 +208,9 @@ typedef struct{
 
 
 typedef struct{
-    SDL_Window *window;
-    float scale;
+    SDL_Window *window;   // eventually im gonna have these in their own struct but im gonna wait until i add multi window support
+    bool isFullscreen;
+    float scale;          // should i have the scale be whole window or just the editor? ig scale would just be like widget size and text size would be its own thing
 
     Scroll scroll;
 
@@ -245,6 +246,8 @@ typedef struct{
     bool ctrl;
     bool shift;
     bool alt;
+    // bool [0, 0, 0] 
+    //  ctrl, shift, alt    maybe, eh fuck it
 
     char* description; // for the keybinds screen thing
 }Keybind;
@@ -278,6 +281,7 @@ typedef struct{
     Keybind scroll_down;
     Keybind new_cursor_down;
     Keybind new_cursor_up;
+    Keybind fullscreen;
 }Keybinds;
 
 typedef struct{
@@ -1382,7 +1386,9 @@ int main(int argc, char *argv[]) {
         .file_path = "", 
         .text = strung_init(""),  
         .lines = {0},
-        .scale = DEFAULT_EDITOR_SCALE
+        .scale = DEFAULT_EDITOR_SCALE,
+        .isFullscreen = false
+        
     };
 
     editor_new_cursor(&editor, 0); // initial cursor
@@ -1399,6 +1405,7 @@ int main(int argc, char *argv[]) {
     
     Settings settings = load_settings(&editor, &info ,&cmd_box, &fb);
 
+
     if(TTF_Init() < 0){
         fprintf(stderr, "Failed to initilize TTF\n");
         return 1;
@@ -1410,8 +1417,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Failed to open font %s, closing application\n", settings.path_to_font);
         exit(1);
     }
-    // i dont like the way that '#' look in this font so it WILL be changed later
-    // TODO: Have different fonts that are loadable while the application is open
+
 
 
     bool line_switch = false;
@@ -2126,14 +2132,24 @@ int main(int argc, char *argv[]) {
 
                     } else if (keybind_matches(&event, settings.keybinds.new_cursor_down)) {
                         int target_line = editor.cursors[0].line + 1;
-
                         editor_new_cursor_line(&editor, target_line, editor.cursors[0].pos_in_line);
+
                     } else if (keybind_matches(&event, settings.keybinds.new_cursor_up)) {
                         int target_line = editor.cursors[0].line - 1;
-
                         editor_new_cursor_line(&editor, target_line, editor.cursors[0].pos_in_line);
-                    } else {
-                        // default: nothing
+
+                    } else if (keybind_matches(&event, settings.keybinds.fullscreen)){
+                        if(!editor.isFullscreen){ 
+                            SDL_SetWindowFullscreen(editor.window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+                            editor.isFullscreen = true; 
+                        }
+                        else {
+                            SDL_SetWindowFullscreen(editor.window, 0);
+                            editor.isFullscreen = false; 
+                        } // i should do more easy features, its much more enjoyable
+                    } 
+                    else {
+                        printf("%d", event.key.keysym.sym); // just to figure out keys in the future 
                     }
                 }
 

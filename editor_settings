@@ -1,7 +1,7 @@
 // General Settings
 font|./fonts/MapleMono-Regular.ttf
 ed-scale|0.300000
-autosave|true
+autosave|false
 
 // Previous State
 last_opened_file|
@@ -41,4 +41,5 @@ scroll_up|1073741899|non
 scroll_down|1073741902|non
 new_cursor_down|1073741905|ca
 new_cursor_up|1073741906|ca
+fullscreen|1073741892|non
 KEYBINDS-END
