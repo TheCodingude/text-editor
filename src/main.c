@@ -288,6 +288,7 @@ typedef struct{
     char* path_to_font;
     float editor_scale;
     bool autosave;
+    bool fullscreen;
 
 
     Keybinds keybinds;
@@ -1387,7 +1388,7 @@ int main(int argc, char *argv[]) {
         .text = strung_init(""),  
         .lines = {0},
         .scale = DEFAULT_EDITOR_SCALE,
-        .isFullscreen = false
+        
         
     };
 
@@ -1404,6 +1405,8 @@ int main(int argc, char *argv[]) {
     Info_box info = {.file_path = "\0", .unsaved_changes = false, .error = false};
     
     Settings settings = load_settings(&editor, &info ,&cmd_box, &fb);
+
+    
 
 
     if(TTF_Init() < 0){
@@ -1449,6 +1452,14 @@ int main(int argc, char *argv[]) {
         SDL_DestroyWindow(editor.window);
         SDL_Quit();
         return 1;
+    }
+
+    if(settings.fullscreen){
+        SDL_SetWindowFullscreen(editor.window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+        editor.isFullscreen = true;       
+    }else{
+        SDL_SetWindowFullscreen(editor.window, 0);
+        editor.isFullscreen = false;
     }
 
     SDL_StartTextInput();

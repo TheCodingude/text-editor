@@ -11,6 +11,7 @@ cur_pos_in_line|[0]
 cur_line|[0]
 scroll_x|0
 scroll_y|0
+fullscreen|false
 
 // Keybinds
 KEYBINDS-BEGIN

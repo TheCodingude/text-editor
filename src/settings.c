@@ -223,6 +223,9 @@ Settings load_settings(Editor* editor, Info_box* info,Command_Box* cmd, File_Bro
         else if(strcmp(tokens[0]->data, "scroll_y") == 0){
             editor->scroll.y_offset = atoi(tokens[1]->data);
         }
+        else if(strcmp(tokens[0]->data, "fullscreen") == 0){
+            settings.fullscreen = STRUNG_PNTR_CMP(tokens[1], "true") ? true : false;
+        }
     }
 
 
@@ -412,6 +415,7 @@ void update_and_save_settings(const Settings settings, const Editor editor){
                "%s"
                "scroll_x|%i\n"
                "scroll_y|%i\n"
+               "fullscreen|%s\n"
             ,            
             settings.path_to_font,
             editor.scale,
@@ -421,7 +425,8 @@ void update_and_save_settings(const Settings settings, const Editor editor){
             editor.cursor_count, 
             curs_str.data,   
             editor.scroll.x_offset,
-            editor.scroll.y_offset
+            editor.scroll.y_offset,
+            editor.isFullscreen ? "true" : "false"
             );
 
     fclose(f);
