@@ -2373,7 +2373,6 @@ int main(int argc, char *argv[]) {
         }
         
         if(cmd_box.in_command){
-            char buffer[100];
             render_command_box(&editor, &cmd_box);
         }
 
