@@ -158,9 +158,9 @@ Settings load_settings(Editor* editor, Info_box* info,Command_Box* cmd, File_Bro
     FILE* f = fopen("editor_settings", "r");
 
 
-    if(!f){
-        printf("Failed to load setting, using default settings\n");
-        return settings;
+    if(f == NULL){
+        f = fopen("default_editor_settings", "r");
+        if(!f) exit(1);
     }
 
     char buf[1024];
