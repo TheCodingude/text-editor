@@ -2085,7 +2085,8 @@ int main(int argc, char *argv[]) {
                         cmd_box.in_command = true;
                         cmdbox_reinit(&cmd_box, "Open File:", CMD_OPENF);
                         strung_append(&cmd_box.command_text, fb.relative_path.data);
-                        cmd_box.cursor = fb.relative_path.size;
+                        strung_append_char(&cmd_box.command_text, '/');
+                        cmd_box.cursor = fb.relative_path.size + 1;
                     } else if (keybind_matches(&event, settings.keybinds.cut)) {
                         save_undo_state(&editor);
                         if(editor.selection){
@@ -2160,7 +2161,7 @@ int main(int argc, char *argv[]) {
                         } // i should do more easy features, its much more enjoyable
                     } 
                     else {
-                        printf("%d", event.key.keysym.sym); // just to figure out keys in the future 
+                        // printf("%d", event.key.keysym.sym); // just to figure out keys in the future 
                     }
                 }
 

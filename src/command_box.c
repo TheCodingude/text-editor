@@ -89,6 +89,35 @@ void autocomplete_font(Command_Box* cmd_box, Strung** tokens, int token_count){
     }
 }
 
+void autocomplete_open_file(Command_Box* cmd_box, Strung** tokens, int token_count){
+    
+    Strung fp = strung_init(cmd_box->command_text.data); // stupid? probably. Ensures they stay different? also probably 
+    Strung ptbac = strung_copy(&fp); // ptbac = part to be auto completed, i suck at variable names ok
+
+    int idx = strung_search_right(&fp, '/');
+    if(idx < 0) return;
+
+    strung_delete_range(&fp, idx + 1, fp.size);
+    strung_delete_range(&ptbac, 0, idx + 1);
+    
+    DIR *dir = opendir(fp.data);
+    if (!dir) {
+        fprintf(stderr, "Cannot open directory: %s\n", fp.data);
+        return;
+    }
+
+    struct dirent *ent;
+    while ((ent = readdir(dir)) != NULL) {
+        Strung temp = strung_init(ent->d_name);
+        if(strung_starts_with(&temp, ptbac.data)){
+            strung_reset(&cmd_box->command_text);
+            strung_append(&cmd_box->command_text, fp.data);
+            strung_append(&cmd_box->command_text, temp.data);
+            if(ent->d_type == DT_DIR) strung_append_char(&cmd_box->command_text, '/');
+            cmd_box->cursor = cmd_box->command_text.size;
+        }
+    }
+}
 
 
 void cmdbox_autocomplete(Command_Box* cmd_box){
@@ -107,6 +136,9 @@ void cmdbox_autocomplete(Command_Box* cmd_box){
     if(cmd_box->type != CMD_NONE){
         if(cmd_box->type == CMD_FONT_CHANGE){
             autocomplete_font(cmd_box, tokens, token_count);
+        }
+        else if (cmd_box->type == CMD_OPENF){
+            autocomplete_open_file(cmd_box, tokens, token_count);
         }
 
 
@@ -161,7 +193,8 @@ void cmdbox_parse_command(Editor *editor, Command_Box *cmd_box, File_Browser *fb
         else if(strcmp(tokens[0]->data, "open") == 0){
             cmdbox_reinit(cmd_box, "Open File:", CMD_OPENF);
             strung_append(&cmd_box->command_text, fb->relative_path.data);
-            cmd_box->cursor = fb->relative_path.size;
+            strung_append_char(&cmd_box->command_text, '/');
+            cmd_box->cursor = fb->relative_path.size + 1;
         }
         else if(strcmp(tokens[0]->data, "protect") == 0){
             cmdbox_reinit(cmd_box, "Enter Password:", CMD_PASS_SET);
